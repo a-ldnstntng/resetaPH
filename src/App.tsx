@@ -64,8 +64,12 @@ export default function App() {
         setHasLineCountMismatch(outcome.hasLineCountMismatch);
         setScreen("review");
       })
-      .catch(() => {
-        setErrorMessage("May nangyaring problema. Subukan ulit.");
+      .catch((err) => {
+        const msg =
+          err instanceof Error && err.message
+            ? err.message
+            : "May nangyaring problema. Subukan ulit.";
+        setErrorMessage(msg);
         setScreen("home");
       });
   };
@@ -81,8 +85,12 @@ export default function App() {
         setHasLineCountMismatch(outcome.hasLineCountMismatch);
         setScreen("review");
       })
-      .catch(() => {
-        setErrorMessage("May nangyaring problema sa Deep Scan. Subukan ulit.");
+      .catch((err) => {
+        const msg =
+          err instanceof Error && err.message
+            ? err.message
+            : "May nangyaring problema sa Deep Scan. Subukan ulit.";
+        setErrorMessage(msg);
         setScreen("review");
       });
   };

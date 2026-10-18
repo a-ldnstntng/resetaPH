@@ -234,6 +234,13 @@ async function startServer() {
         return;
       }
 
+      if (!process.env.GEMINI_API_KEY) {
+        res.status(500).json({
+          error: "Nawawala ang GEMINI_API_KEY sa .env file. Mangyaring i-set up ang iyong Gemini API key para magamit ang AI scan.",
+        });
+        return;
+      }
+
       const isDeep = Boolean(deepScan);
       console.log(
         `[ResetaPH Scan] Starting Gemini extraction (${mimeType}, ${Math.round(
