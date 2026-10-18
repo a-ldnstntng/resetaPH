@@ -174,6 +174,21 @@ export function ReviewScreen({
                     {formatHowToTake(item)}
                   </FieldRow>
                 )}
+
+                {item.noteTl && (
+                  <div
+                    className={`mt-2 rounded-[12px] p-3 text-caption border border-border ${
+                      item.noteTl.includes("BABALA")
+                        ? "bg-warn-bg text-warn-ink"
+                        : "bg-primary-soft text-ink"
+                    }`}
+                  >
+                    <span className="font-semibold block mb-0.5">
+                      {item.noteTl.includes("BABALA") ? "Babala sa Kaligtasan:" : "Paalala sa Pag-inom:"}
+                    </span>
+                    <span>{item.noteTl}</span>
+                  </div>
+                )}
               </div>
             </Card>
           );

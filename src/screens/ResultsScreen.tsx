@@ -1,10 +1,10 @@
 // src/screens/ResultsScreen.tsx
 import { useEffect, useState } from "react";
 import { IdCard, WifiOff, MapPin } from "lucide-react";
-import type { ScanResult } from "../lib/types";
+import type { Branch, ScanResult } from "../lib/types";
 import { DEFAULT_CENTER, SAMPLE_BRANCHES } from "../lib/sample-data";
 import { computeBasketSummary } from "../lib/pricing";
-import { haversineMeters, type LatLng } from "../lib/geo";
+import { haversineMeters, fetchNearbyPharmacies, type LatLng } from "../lib/geo";
 import { StepIndicator } from "../components/StepIndicator";
 import { TabBar, type ResultsTab } from "../components/TabBar";
 import { SavingsHero } from "../components/SavingsHero";
@@ -33,6 +33,7 @@ export function ResultsScreen({
   const [scaleScheduleText, setScaleScheduleText] = useState(false);
   const [filter24h, setFilter24h] = useState(false);
   const [userCenter, setUserCenter] = useState<LatLng>(DEFAULT_CENTER);
+  const [branches, setBranches] = useState<Branch[]>(SAMPLE_BRANCHES);
   const [locationDenied, setLocationDenied] = useState(false);
   const [isOnline, setIsOnline] = useState<boolean>(() =>
     typeof navigator !== "undefined" ? navigator.onLine : true
@@ -78,11 +79,23 @@ export function ResultsScreen({
     }
   }, [tab]);
 
+  useEffect(() => {
+    if (tab !== "botika") return;
+    let active = true;
+    fetchNearbyPharmacies(userCenter).then((res) => {
+      if (active && res.length > 0) {
+        setBranches(res);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [tab, userCenter]);
+
   const basketSummary = computeBasketSummary(scanResult.items);
 
-  const branchesWithDistance = SAMPLE_BRANCHES.filter((b) =>
-    filter24h ? b.open24h === true : true
-  )
+  const branchesWithDistance = branches
+    .filter((b) => (filter24h ? b.open24h === true : true))
     .map((branch) => ({
       branch,
       distanceMeters: haversineMeters(userCenter, {

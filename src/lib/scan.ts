@@ -6,6 +6,7 @@ import type {
   Slot,
 } from "./types";
 import { SAMPLE_SCAN_INFECTION } from "./sample-data";
+import { lookupCatalogPrices, validateMedicationSafety } from "./catalog";
 
 export interface TranscribedLine {
   rawText: string;
@@ -66,39 +67,6 @@ export function cloneScanResult(source: ScanResult): ScanResult {
   };
 }
 
-function emptyGenericPrices(): PriceEntry[] {
-  return [
-    { pharmacyId: "tgp", unitPrice: null, asOf: null },
-    { pharmacyId: "watsons", unitPrice: null, asOf: null },
-    { pharmacyId: "mercury", unitPrice: null, asOf: null },
-  ];
-}
-
-function lookupKnownCatalogPrices(
-  genericName: string,
-  strength: string
-): { brandUnitPrice: number | null; genericPrices: PriceEntry[] } {
-  const normalizedGeneric = genericName.trim().toLowerCase();
-  const normalizedStrength = strength.replace(/\s+/g, "").toLowerCase();
-
-  const matchedSample = SAMPLE_SCAN_INFECTION.items.find(
-    (sampleItem) =>
-      sampleItem.genericName.trim().toLowerCase() === normalizedGeneric &&
-      sampleItem.strength.replace(/\s+/g, "").toLowerCase() === normalizedStrength
-  );
-
-  if (matchedSample) {
-    return {
-      brandUnitPrice: matchedSample.brandUnitPrice,
-      genericPrices: matchedSample.genericPrices.map((p) => ({ ...p })),
-    };
-  }
-
-  return {
-    brandUnitPrice: null,
-    genericPrices: emptyGenericPrices(),
-  };
-}
 
 function normalizeSlots(rawSlots: string[]): Slot[] {
   const filtered = rawSlots
@@ -110,18 +78,14 @@ function normalizeSlots(rawSlots: string[]): Slot[] {
 function normalizeUncertainFields(
   rawFields: string[]
 ): Array<"genericName" | "strength" | "quantity" | "sig"> {
-  const result: Array<"genericName" | "strength" | "quantity" | "sig"> = [];
-  for (const field of rawFields) {
-    if (
-      VALID_UNCERTAIN_FIELDS.includes(
-        field as "genericName" | "strength" | "quantity" | "sig"
-      ) &&
-      !result.includes(field as "genericName" | "strength" | "quantity" | "sig")
-    ) {
-      result.push(field as "genericName" | "strength" | "quantity" | "sig");
-    }
-  }
-  return result;
+  const allowed = new Set(VALID_UNCERTAIN_FIELDS);
+  return Array.from(
+    new Set(
+      rawFields.filter((f): f is "genericName" | "strength" | "quantity" | "sig" =>
+        allowed.has(f as "genericName" | "strength" | "quantity" | "sig")
+      )
+    )
+  );
 }
 
 export function mapExtractionToScanResult(
@@ -129,19 +93,19 @@ export function mapExtractionToScanResult(
 ): AnalyzePrescriptionOutcome {
   const rawItems = Array.isArray(extraction.items) ? extraction.items : [];
   const items: PrescriptionItem[] = rawItems.map((raw, index) => {
-    const uncertainFields = normalizeUncertainFields(
+    const rawUncertain = normalizeUncertainFields(
       Array.isArray(raw.uncertainFields) ? raw.uncertainFields : []
     );
 
-    const genericName =
+    const rawGeneric =
       typeof raw.genericName === "string" && raw.genericName.trim().length > 0
         ? raw.genericName.trim()
         : raw.writtenAs?.trim() || "Hindi nabasa";
 
-    const strength =
+    const rawStrength =
       typeof raw.strength === "string" ? raw.strength.trim() : "";
 
-    const form =
+    const rawForm =
       typeof raw.form === "string" && raw.form.trim().length > 0
         ? raw.form.trim()
         : "tablet";
@@ -167,27 +131,43 @@ export function mapExtractionToScanResult(
         ? Math.round(raw.durationDays)
         : null;
 
-    const { brandUnitPrice, genericPrices } = lookupKnownCatalogPrices(
-      genericName,
-      strength
+    // Validate against Philippine clinical dosages & standard generic nomenclature
+    const validated = validateMedicationSafety(
+      rawGeneric,
+      rawStrength,
+      rawForm,
+      dosesPerDay,
+      durationDays,
+      rawUncertain,
+      raw.mealNote ?? null,
+      raw.noteTl ?? null
+    );
+
+    const rawSlots = Array.isArray(raw.slots) && raw.slots.length > 0
+      ? normalizeSlots(raw.slots)
+      : validated.slots;
+
+    const { brandUnitPrice, genericPrices } = lookupCatalogPrices(
+      validated.genericName,
+      validated.strength
     );
 
     return {
       id: `item-${index + 1}`,
-      writtenAs: raw.writtenAs || genericName,
+      writtenAs: raw.writtenAs || validated.genericName,
       sigRaw: raw.sigRaw || "",
-      brandName: raw.brandName ?? null,
+      brandName: raw.brandName || validated.brandName,
       brandUnitPrice,
-      genericName,
-      strength,
-      form,
+      genericName: validated.genericName,
+      strength: validated.strength,
+      form: validated.form,
       quantity,
       dosesPerDay,
       durationDays,
-      slots: normalizeSlots(Array.isArray(raw.slots) ? raw.slots : []),
-      mealNote: raw.mealNote ?? null,
-      noteTl: raw.noteTl ?? null,
-      uncertainFields,
+      slots: rawSlots,
+      mealNote: validated.mealNote,
+      noteTl: validated.noteTl,
+      uncertainFields: validated.uncertainFields,
       genericPrices,
       isSample: false,
     };
