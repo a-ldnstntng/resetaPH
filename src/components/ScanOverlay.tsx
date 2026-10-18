@@ -1,6 +1,7 @@
 // src/components/ScanOverlay.tsx
 import { useState } from "react";
 import { FileText } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 import { Card } from "./Card";
 
 interface ScanOverlayProps {
@@ -9,6 +10,7 @@ interface ScanOverlayProps {
 }
 
 export function ScanOverlay({ imageUrl, sampleLabel }: ScanOverlayProps) {
+  const { t } = useLanguage();
   const [imgFailed, setImgFailed] = useState(false);
   const showImage = imageUrl !== null && !imgFailed;
 
@@ -37,7 +39,7 @@ export function ScanOverlay({ imageUrl, sampleLabel }: ScanOverlayProps) {
       </div>
 
       <p className="text-h2 text-ink text-center m-0">
-        Binabasa ang reseta...
+        {t.readingPrescription}
       </p>
 
       <Card className="flex flex-col gap-3" aria-hidden="true">

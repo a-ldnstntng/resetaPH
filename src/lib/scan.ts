@@ -5,6 +5,7 @@ import type {
   ScanResult,
   Slot,
 } from "./types";
+import type { Language } from "./i18n";
 import { SAMPLE_SCAN_INFECTION } from "./sample-data";
 import { lookupCatalogPrices, validateMedicationSafety } from "./catalog";
 
@@ -25,7 +26,9 @@ export interface ExtractedMedicationItem {
   durationDays: number | null;
   slots: string[];
   mealNote: string | null;
+  mealNoteEn?: string | null;
   noteTl: string | null;
+  noteEn?: string | null;
   uncertainFields: string[];
 }
 
@@ -60,6 +63,8 @@ export function cloneScanResult(source: ScanResult): ScanResult {
     readScore: source.readScore,
     items: source.items.map((item) => ({
       ...item,
+      mealNoteEn: item.mealNoteEn ?? null,
+      noteEn: item.noteEn ?? null,
       slots: [...item.slots],
       uncertainFields: [...item.uncertainFields],
       genericPrices: item.genericPrices.map((p) => ({ ...p })),
@@ -89,8 +94,10 @@ function normalizeUncertainFields(
 }
 
 export function mapExtractionToScanResult(
-  extraction: PrescriptionExtractionResponse
+  extraction: PrescriptionExtractionResponse,
+  language: Language = "en"
 ): AnalyzePrescriptionOutcome {
+  const notDetectedText = language === "en" ? "Not detected" : "Hindi nabasa";
   const rawItems = Array.isArray(extraction.items) ? extraction.items : [];
   const items: PrescriptionItem[] = rawItems.map((raw, index) => {
     const rawUncertain = normalizeUncertainFields(
@@ -100,7 +107,7 @@ export function mapExtractionToScanResult(
     const rawGeneric =
       typeof raw.genericName === "string" && raw.genericName.trim().length > 0
         ? raw.genericName.trim()
-        : raw.writtenAs?.trim() || "Hindi nabasa";
+        : raw.writtenAs?.trim() || notDetectedText;
 
     const rawStrength =
       typeof raw.strength === "string" ? raw.strength.trim() : "";
@@ -140,7 +147,10 @@ export function mapExtractionToScanResult(
       durationDays,
       rawUncertain,
       raw.mealNote ?? null,
-      raw.noteTl ?? null
+      raw.noteTl ?? null,
+      raw.mealNoteEn ?? null,
+      raw.noteEn ?? null,
+      language
     );
 
     const rawSlots = Array.isArray(raw.slots) && raw.slots.length > 0
@@ -166,7 +176,9 @@ export function mapExtractionToScanResult(
       durationDays,
       slots: rawSlots,
       mealNote: validated.mealNote,
+      mealNoteEn: validated.mealNoteEn,
       noteTl: validated.noteTl,
+      noteEn: validated.noteEn,
       uncertainFields: validated.uncertainFields,
       genericPrices,
       isSample: false,
@@ -295,7 +307,8 @@ async function enhancePrescriptionImage(
 
 export async function analyzePrescription(
   input?: ScanResult | File,
-  deepScan = false
+  deepScan = false,
+  language: Language = "en"
 ): Promise<AnalyzePrescriptionOutcome> {
   if (input instanceof File) {
     const { mimeType, base64Data } = await enhancePrescriptionImage(input);
@@ -306,7 +319,7 @@ export async function analyzePrescription(
       const response = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mimeType, base64Data, deepScan }),
+        body: JSON.stringify({ mimeType, base64Data, deepScan, language }),
         signal: controller.signal,
       });
 
@@ -330,7 +343,7 @@ export async function analyzePrescription(
           : 0
       );
 
-      return mapExtractionToScanResult(payload.extraction);
+      return mapExtractionToScanResult(payload.extraction, language);
     } finally {
       window.clearTimeout(timeoutId);
     }

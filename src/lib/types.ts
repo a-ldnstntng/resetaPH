@@ -21,8 +21,10 @@ export interface PrescriptionItem {
   dosesPerDay: number;
   durationDays: number | null;
   slots: Slot[];
-  mealNote: string | null;        // Taglish string, shown as is
-  noteTl: string | null;          // Taglish reminder, shown as is
+  mealNote: string | null;        // Tagalog/Filipino string
+  mealNoteEn?: string | null;     // English translation
+  noteTl: string | null;          // Tagalog/Filipino reminder
+  noteEn?: string | null;         // English reminder
   uncertainFields: Array<"genericName" | "strength" | "quantity" | "sig">;
   genericPrices: PriceEntry[];
   isSample: boolean;
@@ -52,6 +54,7 @@ export interface Branch {
 export interface SamplePrescription {
   id: string;
   label: string;
+  labelEn?: string;
   imageSrc: string;               // path under /public/samples/
   data: ScanResult | null;        // null = not ready, do not render this sample
 }

@@ -118,7 +118,15 @@ const extractionSchema: Schema = {
             type: Type.STRING,
             nullable: true,
           },
+          mealNoteEn: {
+            type: Type.STRING,
+            nullable: true,
+          },
           noteTl: {
+            type: Type.STRING,
+            nullable: true,
+          },
+          noteEn: {
             type: Type.STRING,
             nullable: true,
           },
@@ -141,7 +149,9 @@ const extractionSchema: Schema = {
           "durationDays",
           "slots",
           "mealNote",
+          "mealNoteEn",
           "noteTl",
+          "noteEn",
           "uncertainFields",
         ],
       },
@@ -214,29 +224,40 @@ async function startServer() {
       req.ip ||
       "unknown";
 
+    const { mimeType, base64Data, deepScan, language } = req.body as {
+      mimeType?: string;
+      base64Data?: string;
+      deepScan?: boolean;
+      language?: "en" | "fil";
+    };
+
+    const lang = language === "fil" ? "fil" : "en";
+
     if (!checkRateLimit(clientIp)) {
       res.status(429).json({
-        error: "Masyadong maraming request. Maghintay ng 1 minuto bago mag-scan ulit.",
+        error:
+          lang === "fil"
+            ? "Masyadong maraming request. Maghintay ng 1 minuto bago mag-scan ulit."
+            : "Too many requests. Please wait 1 minute before scanning again.",
       });
       return;
     }
 
     const startMs = Date.now();
     try {
-      const { mimeType, base64Data, deepScan } = req.body as {
-        mimeType?: string;
-        base64Data?: string;
-        deepScan?: boolean;
-      };
-
       if (!mimeType || !base64Data) {
-        res.status(400).json({ error: "Missing image data" });
+        res.status(400).json({
+          error: lang === "fil" ? "Nawawala ang larawan ng reseta" : "Missing prescription image data",
+        });
         return;
       }
 
       if (!process.env.GEMINI_API_KEY) {
         res.status(500).json({
-          error: "Nawawala ang GEMINI_API_KEY sa .env file. Mangyaring i-set up ang iyong Gemini API key para magamit ang AI scan.",
+          error:
+            lang === "fil"
+              ? "Nawawala ang GEMINI_API_KEY sa .env file. Mangyaring i-set up ang iyong Gemini API key para magamit ang AI scan."
+              : "Missing GEMINI_API_KEY in .env file. Please set up your Gemini API key to use AI scan.",
         });
         return;
       }
@@ -245,7 +266,7 @@ async function startServer() {
       console.log(
         `[ResetaPH Scan] Starting Gemini extraction (${mimeType}, ${Math.round(
           base64Data.length / 1024
-        )} KB base64, deepScan=${isDeep})...`
+        )} KB base64, deepScan=${isDeep}, lang=${lang})...`
       );
 
       const ai = new GoogleGenAI({
@@ -257,9 +278,12 @@ async function startServer() {
         },
       });
 
+      const langInstruction =
+        "Bilingual notes: Provide 'mealNote' (Filipino meal timing, e.g. 'Pagkatapos kumain') and 'mealNoteEn' (English meal timing, e.g. 'Take after meals'). Provide 'noteTl' (Filipino patient instructions or reminders, e.g. 'Tapusin ang buong reseta') and 'noteEn' (English patient instructions or reminders, e.g. 'Complete the full course of antibiotics').";
+
       const promptText = isDeep
-        ? `${EXTRACTION_PROMPT}\n\nDEEP DECIPHER MODE: Examine ambiguous cursive handwriting strokes meticulously. Cross-reference doctor abbreviations and letter patterns with standard Philippine FDA drug formulations.\n\nFirst transcribe every numbered medication block or line on the slip in reading order into \`lines\` with \`rawText\` and \`isMedication\`. Set \`medicationLineCount\` to the count of lines where \`isMedication\` is true. Then populate \`items\` with one entry for every line where \`isMedication\` is true. Never drop a medication line silently—if any field (genericName, strength, quantity, sig) is hard to read or missing, still include the item and list the uncertain field names in \`uncertainFields\`. Use valid slots from ["umaga", "tanghali", "gabi"].`
-        : `${EXTRACTION_PROMPT}\n\nFirst transcribe every numbered medication block or line on the slip in reading order into \`lines\` with \`rawText\` and \`isMedication\`. Set \`medicationLineCount\` to the count of lines where \`isMedication\` is true. Then populate \`items\` with one entry for every line where \`isMedication\` is true. Never drop a medication line silently—if any field (genericName, strength, quantity, sig) is hard to read or missing, still include the item and list the uncertain field names in \`uncertainFields\`. Use valid slots from ["umaga", "tanghali", "gabi"].`;
+        ? `${EXTRACTION_PROMPT}\n\nDEEP DECIPHER MODE: Examine ambiguous cursive handwriting strokes meticulously. Cross-reference doctor abbreviations and letter patterns with standard Philippine FDA drug formulations.\n\n${langInstruction}\n\nFirst transcribe every numbered medication block or line on the slip in reading order into \`lines\` with \`rawText\` and \`isMedication\`. Set \`medicationLineCount\` to the count of lines where \`isMedication\` is true. Then populate \`items\` with one entry for every line where \`isMedication\` is true. Never drop a medication line silently—if any field (genericName, strength, quantity, sig) is hard to read or missing, still include the item and list the uncertain field names in \`uncertainFields\`. Use valid slots from ["umaga", "tanghali", "gabi"].`
+        : `${EXTRACTION_PROMPT}\n\n${langInstruction}\n\nFirst transcribe every numbered medication block or line on the slip in reading order into \`lines\` with \`rawText\` and \`isMedication\`. Set \`medicationLineCount\` to the count of lines where \`isMedication\` is true. Then populate \`items\` with one entry for every line where \`isMedication\` is true. Never drop a medication line silently—if any field (genericName, strength, quantity, sig) is hard to read or missing, still include the item and list the uncertain field names in \`uncertainFields\`. Use valid slots from ["umaga", "tanghali", "gabi"].`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.8-flash",

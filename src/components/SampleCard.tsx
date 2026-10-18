@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { FileText } from "lucide-react";
 import type { SamplePrescription } from "../lib/types";
+import { useLanguage } from "../context/LanguageContext";
 
 interface SampleCardProps {
   sample: SamplePrescription;
@@ -9,7 +10,9 @@ interface SampleCardProps {
 }
 
 export function SampleCard({ sample, onSelect }: SampleCardProps) {
+  const { language } = useLanguage();
   const [imageError, setImageError] = useState(false);
+  const displayLabel = language === "en" && sample.labelEn ? sample.labelEn : sample.label;
 
   return (
     <button
@@ -30,7 +33,7 @@ export function SampleCard({ sample, onSelect }: SampleCardProps) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <span className="text-body-strong text-ink block">{sample.label}</span>
+        <span className="text-body-strong text-ink block">{displayLabel}</span>
       </div>
     </button>
   );

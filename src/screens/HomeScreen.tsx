@@ -1,8 +1,10 @@
+// src/screens/HomeScreen.tsx
 import React, { useRef } from "react";
 import { Camera, Upload, History, Trash2, ArrowRight } from "lucide-react";
 import type { SamplePrescription } from "../lib/types";
 import type { SavedScan } from "../lib/history";
-import { SAMPLES } from "../lib/sample-data";
+import { getSamplePrescriptions } from "../lib/sample-data";
+import { useLanguage } from "../context/LanguageContext";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SecondaryButton } from "../components/SecondaryButton";
 import { SampleCard } from "../components/SampleCard";
@@ -22,10 +24,11 @@ export function HomeScreen({
   onSelectHistoryScan,
   onClearHistory,
 }: HomeScreenProps) {
+  const { language, t } = useLanguage();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
-  const readySamples = SAMPLES.filter((s) => s.data !== null);
+  const readySamples = getSamplePrescriptions(language).filter((s) => s.data !== null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -38,18 +41,12 @@ export function HomeScreen({
   return (
     <main className="flex-1 flex flex-col justify-between gap-8 py-2">
       <div className="flex flex-col gap-6">
-        <header>
-          <span className="text-h2 font-extrabold text-primary tracking-tight">
-            ResetaPH
-          </span>
-        </header>
-
-        <section className="flex flex-col gap-3 pt-4">
+        <section className="flex flex-col gap-2 pt-2">
           <h1 className="text-h1 text-ink m-0">
-            I-scan ang reseta mo
+            {t.homeHeading}
           </h1>
           <p className="text-body text-ink-muted m-0">
-            Alamin ang tamang gamot, tinatayang presyo, at paano inumin.
+            {t.homeSubheading}
           </p>
         </section>
 
@@ -78,7 +75,7 @@ export function HomeScreen({
             icon={<Camera className="w-6 h-6" />}
             onClick={() => cameraInputRef.current?.click()}
           >
-            I-scan ang Reseta
+            {t.btnScanCamera}
           </PrimaryButton>
 
           <SecondaryButton
@@ -86,7 +83,7 @@ export function HomeScreen({
             icon={<Upload className="w-6 h-6" />}
             onClick={() => uploadInputRef.current?.click()}
           >
-            Mag-upload ng Larawan
+            {t.btnUploadPhoto}
           </SecondaryButton>
         </section>
 
@@ -95,16 +92,16 @@ export function HomeScreen({
             <div className="flex items-center justify-between">
               <h2 className="text-body-strong text-ink m-0 flex items-center gap-2">
                 <History className="w-5 h-5 text-primary" />
-                <span>Naka-save sa Device</span>
+                <span>{t.historyTitle}</span>
               </h2>
               <button
                 type="button"
                 onClick={onClearHistory}
                 className="text-caption text-ink-muted hover:text-danger-ink flex items-center gap-1 cursor-pointer"
-                title="Burahin ang lokal na history"
+                title={t.historyClearTitle}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Burahin</span>
+                <span>{t.historyClear}</span>
               </button>
             </div>
 
@@ -118,11 +115,13 @@ export function HomeScreen({
                 >
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <span className="text-body-strong text-ink truncate">
-                      {item.itemSummary}
+                      {!item.itemSummary || item.itemSummary === "Reseta" || item.itemSummary === "Prescription"
+                        ? t.prescriptionFallback
+                        : item.itemSummary}
                     </span>
                     <span className="text-caption text-ink-muted">
                       {item.doctorName ? `${item.doctorName} · ` : ""}
-                      {item.itemCount} gamot
+                      {t.historyMedsCount(item.itemCount)}
                     </span>
                   </div>
                   <ArrowRight className="w-4 h-4 text-ink-muted shrink-0" />
@@ -135,7 +134,7 @@ export function HomeScreen({
         {readySamples.length > 0 && (
           <section className="flex flex-col gap-3 pt-4">
             <h2 className="text-body-strong text-ink m-0">
-              Subukan ang sample na reseta
+              {t.samplesHeading}
             </h2>
             <div className="flex flex-col gap-3">
               {readySamples.map((sample) => (
@@ -152,7 +151,7 @@ export function HomeScreen({
 
       <footer className="pt-6 border-t border-border">
         <p className="text-body text-ink-muted m-0">
-          Gabay lang ito. Hindi kapalit ng payo ng doktor o parmasyutiko.
+          {t.medicalDisclaimer}
         </p>
       </footer>
     </main>

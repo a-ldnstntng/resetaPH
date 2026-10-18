@@ -1,5 +1,6 @@
 // src/components/TabBar.tsx
 import clsx from "clsx";
+import { useLanguage } from "../context/LanguageContext";
 
 export type ResultsTab = "presyo" | "inumin" | "botika";
 
@@ -8,23 +9,25 @@ interface TabBarProps {
   onSelectTab: (tab: ResultsTab) => void;
 }
 
-const TABS: Array<{ id: ResultsTab; label: string }> = [
-  { id: "presyo", label: "Presyo" },
-  { id: "inumin", label: "Paano Inumin" },
-  { id: "botika", label: "Botika" },
-];
-
 export function TabBar({ activeTab, onSelectTab }: TabBarProps) {
-  const activeIndex = TABS.findIndex((t) => t.id === activeTab);
+  const { t } = useLanguage();
+
+  const tabs: Array<{ id: ResultsTab; label: string }> = [
+    { id: "presyo", label: t.tabPrice },
+    { id: "inumin", label: t.tabHowToTake },
+    { id: "botika", label: t.tabPharmacy },
+  ];
+
+  const activeIndex = tabs.findIndex((item) => item.id === activeTab);
 
   return (
     <div className="sticky top-0 z-20 bg-bg pt-1 pb-3">
       <div
         role="tablist"
-        aria-label="Resulta"
+        aria-label={t.stepResults}
         className="relative grid grid-cols-3 border-b border-border bg-surface rounded-t-[16px]"
       >
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const isSelected = activeTab === tab.id;
           return (
             <button

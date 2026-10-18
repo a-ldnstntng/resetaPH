@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import type { PharmacyId } from "../lib/types";
 import { PHARMACY_LABEL } from "../lib/sample-data";
 import { formatPhp } from "../lib/pricing";
+import { useLanguage } from "../context/LanguageContext";
 
 interface PharmacyPriceRowProps {
   pharmacyId: PharmacyId;
@@ -18,6 +19,7 @@ export function PharmacyPriceRow({
   totalPrice,
   isCheapest,
 }: PharmacyPriceRowProps) {
+  const { t } = useLanguage();
   const label = PHARMACY_LABEL[pharmacyId];
 
   return (
@@ -35,13 +37,13 @@ export function PharmacyPriceRow({
           {isCheapest && (
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[999px] bg-primary text-surface text-body-strong">
               <Check className="w-4 h-4" aria-hidden="true" />
-              <span>Pinakamura</span>
+              <span>{t.cheapestBadge}</span>
             </span>
           )}
         </div>
         {unitPrice !== null && (
           <span className="text-body text-ink-muted tabular-nums">
-            {`${formatPhp(unitPrice)} / piraso`}
+            {t.perPiece(formatPhp(unitPrice))}
           </span>
         )}
       </div>
@@ -57,7 +59,7 @@ export function PharmacyPriceRow({
             {formatPhp(totalPrice)}
           </span>
         ) : (
-          <span className="text-body text-ink-muted">Walang presyo pa</span>
+          <span className="text-body text-ink-muted">{t.noPriceYet}</span>
         )}
       </div>
     </div>

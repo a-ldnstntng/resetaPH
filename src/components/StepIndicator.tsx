@@ -1,22 +1,25 @@
 // src/components/StepIndicator.tsx
 import clsx from "clsx";
 import { Check } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 
 interface StepIndicatorProps {
   currentStep: 1 | 2 | 3;
 }
 
-const STEPS: Array<{ step: 1 | 2 | 3; label: string }> = [
-  { step: 1, label: "Scan" },
-  { step: 2, label: "Suriin" },
-  { step: 3, label: "Resulta" },
-];
-
 export function StepIndicator({ currentStep }: StepIndicatorProps) {
+  const { t } = useLanguage();
+
+  const steps: Array<{ step: 1 | 2 | 3; label: string }> = [
+    { step: 1, label: t.stepScan },
+    { step: 2, label: t.stepReview },
+    { step: 3, label: t.stepResults },
+  ];
+
   return (
     <nav aria-label="Progress" className="w-full mb-5">
       <ol className="grid grid-cols-3 gap-2">
-        {STEPS.map(({ step, label }) => {
+        {steps.map(({ step, label }) => {
           const isCompleted = step < currentStep;
           const isCurrent = step === currentStep;
           return (

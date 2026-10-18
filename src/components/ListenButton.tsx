@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import { Volume2, Square } from "lucide-react";
 import type { PrescriptionItem, Slot } from "../lib/types";
+import { getItemMealNote, getItemNote } from "../lib/catalog";
+import { useLanguage } from "../context/LanguageContext";
+import type { Language } from "../lib/i18n";
 import { PrimaryButton } from "./PrimaryButton";
 import { EmptyState } from "./EmptyState";
 
@@ -9,30 +12,41 @@ interface ListenButtonProps {
   items: PrescriptionItem[];
 }
 
-const SLOT_LABEL: Record<Slot, string> = {
+const SLOT_LABEL_FIL: Record<Slot, string> = {
   umaga: "Umaga",
   tanghali: "Tanghali",
   gabi: "Gabi",
 };
 
-export function buildSpeechText(items: PrescriptionItem[]): string {
+const SLOT_LABEL_EN: Record<Slot, string> = {
+  umaga: "Morning",
+  tanghali: "Noon",
+  gabi: "Evening",
+};
+
+export function buildSpeechText(items: PrescriptionItem[], language: Language = "en"): string {
   const parts: string[] = [];
+  const slotLabels = language === "en" ? SLOT_LABEL_EN : SLOT_LABEL_FIL;
+
   for (const item of items) {
     parts.push(`${item.genericName} ${item.strength}.`);
-    const slotNames = item.slots.map((s) => SLOT_LABEL[s]).join(", ");
-    if (item.mealNote !== null) {
-      parts.push(`${slotNames}. ${item.mealNote}.`);
+    const slotNames = item.slots.map((s) => slotLabels[s] || s).join(", ");
+    const meal = getItemMealNote(item, language);
+    if (meal !== null) {
+      parts.push(`${slotNames}. ${meal}.`);
     } else {
       parts.push(`${slotNames}.`);
     }
-    if (item.noteTl !== null) {
-      parts.push(item.noteTl);
+    const note = getItemNote(item, language);
+    if (note !== null) {
+      parts.push(note);
     }
   }
   return parts.join(" ");
 }
 
 export function ListenButton({ items }: ListenButtonProps) {
+  const { language, t } = useLanguage();
   const [supported, setSupported] = useState(true);
   const [speaking, setSpeaking] = useState(false);
 
@@ -44,20 +58,22 @@ export function ListenButton({ items }: ListenButtonProps) {
     setSupported(isSupported);
 
     if (isSupported) {
-      // Warm up voices on mount
       window.speechSynthesis.getVoices();
-    }
+      const handleVoicesChanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", handleVoicesChanged);
 
-    return () => {
-      if (isSupported) {
+      return () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", handleVoicesChanged);
         window.speechSynthesis.cancel();
-      }
-    };
+      };
+    }
   }, []);
 
   if (!supported) {
     return (
-      <EmptyState message="Hindi sinusuportahan ng device na ito ang pakikinig." />
+      <EmptyState message={t.listenNotSupported} />
     );
   }
 
@@ -69,16 +85,24 @@ export function ListenButton({ items }: ListenButtonProps) {
     }
 
     window.speechSynthesis.cancel();
-    const text = buildSpeechText(items);
+    const text = buildSpeechText(items, language);
     const utterance = new window.SpeechSynthesisUtterance(text);
-    // VERIFY: speechSynthesis utterance lang set to fil-PH with fallback to default voice
-    utterance.lang = "fil-PH";
+
     const voices = window.speechSynthesis.getVoices();
-    const filVoice = voices.find((v) =>
-      v.lang.toLowerCase().startsWith("fil") || v.lang.toLowerCase().startsWith("tl")
-    );
-    if (filVoice) {
-      utterance.voice = filVoice;
+    if (language === "fil") {
+      utterance.lang = "fil-PH";
+      const filVoice = voices.find((v) =>
+        v.lang.toLowerCase().startsWith("fil") || v.lang.toLowerCase().startsWith("tl")
+      );
+      if (filVoice) {
+        utterance.voice = filVoice;
+      }
+    } else {
+      utterance.lang = "en-US";
+      const enVoice = voices.find((v) => v.lang.toLowerCase().startsWith("en"));
+      if (enVoice) {
+        utterance.voice = enVoice;
+      }
     }
 
     utterance.onend = () => {
@@ -103,7 +127,7 @@ export function ListenButton({ items }: ListenButtonProps) {
         )
       }
     >
-      {speaking ? "Itigil" : "Pakinggan"}
+      {speaking ? t.btnStop : t.btnListen}
     </PrimaryButton>
   );
 }

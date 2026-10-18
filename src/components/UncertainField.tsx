@@ -1,6 +1,7 @@
 // src/components/UncertainField.tsx
 import { useState, useId } from "react";
 import { AlertTriangle, Check } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 import { Chip } from "./Chip";
 
 interface UncertainFieldProps {
@@ -18,6 +19,7 @@ export function UncertainField({
   inputType = "text",
   onChange,
 }: UncertainFieldProps) {
+  const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const inputId = useId();
@@ -43,7 +45,7 @@ export function UncertainField({
           tone="warn"
           icon={<AlertTriangle className="w-4 h-4 text-warn-ink" />}
         >
-          Pakisigurado
+          {t.uncertainBadge}
         </Chip>
       </div>
 
@@ -89,7 +91,7 @@ export function UncertainField({
       )}
 
       <p className="text-body text-warn-ink m-0">
-        Hindi kami sigurado dito. Itanong sa parmasyutiko.
+        {t.uncertainHelpText}
       </p>
     </div>
   );

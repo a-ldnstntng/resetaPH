@@ -5,6 +5,7 @@ import type { Branch, ScanResult } from "../lib/types";
 import { DEFAULT_CENTER, SAMPLE_BRANCHES } from "../lib/sample-data";
 import { computeBasketSummary } from "../lib/pricing";
 import { haversineMeters, fetchNearbyPharmacies, type LatLng } from "../lib/geo";
+import { useLanguage } from "../context/LanguageContext";
 import { StepIndicator } from "../components/StepIndicator";
 import { TabBar, type ResultsTab } from "../components/TabBar";
 import { SavingsHero } from "../components/SavingsHero";
@@ -29,6 +30,7 @@ export function ResultsScreen({
   onOpenCounterMode,
   onRescan,
 }: ResultsScreenProps) {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<ResultsTab>("presyo");
   const [scaleScheduleText, setScaleScheduleText] = useState(false);
   const [filter24h, setFilter24h] = useState(false);
@@ -57,7 +59,6 @@ export function ResultsScreen({
   useEffect(() => {
     if (tab !== "botika") return;
 
-    // VERIFY: navigator.geolocation.getCurrentPosition standard browser call
     if (typeof navigator !== "undefined" && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -128,7 +129,7 @@ export function ResultsScreen({
 
           <div className="pt-2">
             <SecondaryButton variant="text" onClick={onRescan}>
-              Mag-scan ulit
+              {t.scanAgain}
             </SecondaryButton>
           </div>
         </section>
@@ -142,12 +143,12 @@ export function ResultsScreen({
           className="flex flex-col gap-4 pt-2"
         >
           <div className="flex items-center justify-between gap-2">
-            <h1 className="text-h1 text-ink m-0">Paano inumin</h1>
+            <h1 className="text-h1 text-ink m-0">{t.howToTakeHeading}</h1>
             <button
               type="button"
               onClick={() => setScaleScheduleText((prev) => !prev)}
               aria-pressed={scaleScheduleText}
-              aria-label="A A+"
+              aria-label={t.fontSizeToggleLabel}
               className="min-h-[48px] min-w-[64px] px-3 py-2 rounded-[12px] border border-border bg-surface text-body-strong text-ink flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <span>A</span>
@@ -164,7 +165,7 @@ export function ResultsScreen({
 
           <div className="pt-2">
             <SecondaryButton variant="text" onClick={onRescan}>
-              Mag-scan ulit
+              {t.scanAgain}
             </SecondaryButton>
           </div>
         </section>
@@ -177,13 +178,13 @@ export function ResultsScreen({
           aria-labelledby="tab-botika"
           className="flex flex-col gap-4 pt-2"
         >
-          <h1 className="text-h1 text-ink m-0">Mga botika sa malapit</h1>
+          <h1 className="text-h1 text-ink m-0">{t.nearbyPharmaciesHeading}</h1>
 
           {!isOnline ? (
             <EmptyState
               tone="warn"
               icon={<WifiOff className="w-6 h-6" />}
-              message="Walang internet. Hindi makikita ang mapa."
+              message={t.offlineMessage}
             />
           ) : (
             <PharmacyMap
@@ -196,7 +197,7 @@ export function ResultsScreen({
             <EmptyState
               tone="neutral"
               icon={<MapPin className="w-6 h-6" />}
-              message="Hindi namin makuha ang lokasyon mo. Ipinapakita ang paligid ng DLSU Manila."
+              message={t.locationDeniedMessage}
             />
           )}
 
@@ -205,7 +206,7 @@ export function ResultsScreen({
               onClick={() => setFilter24h((prev) => !prev)}
               active={filter24h}
             >
-              Bukas 24 oras
+              {t.filter24h}
             </Chip>
           </div>
 
@@ -222,7 +223,7 @@ export function ResultsScreen({
 
           <div className="pt-2">
             <SecondaryButton variant="text" onClick={onRescan}>
-              Mag-scan ulit
+              {t.scanAgain}
             </SecondaryButton>
           </div>
         </section>
@@ -235,7 +236,7 @@ export function ResultsScreen({
             icon={<IdCard className="w-6 h-6" />}
             className="card-shadow"
           >
-            Ipakita sa Botika
+            {t.btnShowAtPharmacy}
           </PrimaryButton>
         </div>
       </div>

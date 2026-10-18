@@ -1,7 +1,7 @@
 // src/components/CounterMode.tsx
 import { useEffect, useRef } from "react";
 import type { PrescriptionItem } from "../lib/types";
-import { SecondaryButton } from "./SecondaryButton";
+import { useLanguage } from "../context/LanguageContext";
 
 interface CounterModeProps {
   items: PrescriptionItem[];
@@ -9,6 +9,7 @@ interface CounterModeProps {
 }
 
 export function CounterMode({ items, onClose }: CounterModeProps) {
+  const { t } = useLanguage();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -17,7 +18,6 @@ export function CounterMode({ items, onClose }: CounterModeProps) {
 
     let wakeLockSentinel: { release: () => Promise<void> } | null = null;
 
-    // VERIFY: navigator.wakeLock.request("screen") Screen Wake Lock API check
     if (
       typeof navigator !== "undefined" &&
       "wakeLock" in navigator &&
@@ -63,10 +63,10 @@ export function CounterMode({ items, onClose }: CounterModeProps) {
         <div className="flex flex-col gap-5">
           <header className="flex flex-col gap-2">
             <h1 id="counter-mode-heading" className="text-h1 text-ink m-0">
-              Magandang araw po!
+              {t.counterGreeting}
             </h1>
             <p className="text-body text-ink m-0">
-              Pabili po ng generic na katumbas ng nasa reseta:
+              {t.counterPrompt}
             </p>
           </header>
 
@@ -87,7 +87,7 @@ export function CounterMode({ items, onClose }: CounterModeProps) {
           </div>
 
           <p className="text-body text-ink-muted m-0">
-            Pakikumpirma po sa parmasyutiko.
+            {t.counterPharmacistNote}
           </p>
         </div>
 
@@ -98,7 +98,7 @@ export function CounterMode({ items, onClose }: CounterModeProps) {
             onClick={onClose}
             className="w-full min-h-[56px] px-5 py-3 rounded-[16px] bg-surface border border-border text-ink text-body-strong flex items-center justify-center cursor-pointer hover:bg-bg transition-colors duration-150 ease-out"
           >
-            Isara
+            {t.counterClose}
           </button>
         </div>
       </div>

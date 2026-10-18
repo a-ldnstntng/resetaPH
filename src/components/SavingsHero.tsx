@@ -4,6 +4,7 @@ import { Info } from "lucide-react";
 import type { BasketSummary } from "../lib/pricing";
 import { formatPhp } from "../lib/pricing";
 import { PHARMACY_LABEL } from "../lib/sample-data";
+import { useLanguage } from "../context/LanguageContext";
 import { Card } from "./Card";
 import { Chip } from "./Chip";
 import { EmptyState } from "./EmptyState";
@@ -13,6 +14,7 @@ interface SavingsHeroProps {
 }
 
 export function SavingsHero({ summary }: SavingsHeroProps) {
+  const { t } = useLanguage();
   const [displayedSavings, setDisplayedSavings] = useState(summary.totalSavings);
 
   useEffect(() => {
@@ -24,7 +26,6 @@ export function SavingsHero({ summary }: SavingsHeroProps) {
     const prefersReducedMotion =
       typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
-      // VERIFY: matchMedia prefers-reduced-motion query in standard browsers
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReducedMotion) {
@@ -57,8 +58,8 @@ export function SavingsHero({ summary }: SavingsHeroProps) {
 
   const priceStampText =
     summary.latestAsOf !== null
-      ? `Presyo as of ${summary.latestAsOf}`
-      : "Petsa ng presyo: hindi pa nakasaad";
+      ? t.priceDateAsOf(summary.latestAsOf)
+      : t.priceDateMissing;
 
   return (
     <div className="flex flex-col gap-4">
@@ -66,7 +67,7 @@ export function SavingsHero({ summary }: SavingsHeroProps) {
         <>
           <Card variant="primary-soft" className="flex flex-col gap-3">
             <span className="text-body-strong text-ink">
-              Tinatayang matitipid
+              {t.estimatedSavings}
             </span>
             <div className="flex items-baseline gap-3 flex-wrap">
               <span
@@ -75,16 +76,16 @@ export function SavingsHero({ summary }: SavingsHeroProps) {
               >
                 {formatPhp(displayedSavings)}
               </span>
-              <Chip tone="primary">{`${summary.savingsPercent}% mas mura`}</Chip>
+              <Chip tone="primary">{t.cheaperGenericBadge(summary.savingsPercent)}</Chip>
             </div>
             <span className="text-body text-ink-muted">
-              kung generic ang bibilhin
+              {t.ifBuyingGeneric}
             </span>
           </Card>
 
           <Card className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1 border-r border-border pr-3">
-              <span className="text-body text-ink-muted">Branded</span>
+              <span className="text-body text-ink-muted">{t.brandedLabel}</span>
               <span
                 className="text-h2 text-ink tabular-nums"
                 data-testid="brand-total-amount"
@@ -94,7 +95,7 @@ export function SavingsHero({ summary }: SavingsHeroProps) {
             </div>
             <div className="flex flex-col gap-1 pl-1">
               <span className="text-body text-ink-muted">
-                Generic (pinakamura)
+                {t.genericCheapestLabel}
               </span>
               <span
                 className="text-h2 text-primary tabular-nums"
@@ -111,14 +112,14 @@ export function SavingsHero({ summary }: SavingsHeroProps) {
           </Card>
         </>
       ) : (
-        <EmptyState message="Wala pang sapat na presyo para makumpara." />
+        <EmptyState message={t.notEnoughPrices} />
       )}
 
       <div className="flex flex-col gap-1.5 px-1">
         <div className="flex items-start gap-2 text-ink-muted">
           <Info className="w-5 h-5 shrink-0 mt-1" aria-hidden="true" />
           <p className="text-body m-0">
-            Tinatayang presyo lamang. Maaaring iba sa botika.
+            {t.priceEstimateDisclaimer}
           </p>
         </div>
         <p className="text-caption text-ink-muted m-0 pl-7">{priceStampText}</p>
@@ -128,7 +129,7 @@ export function SavingsHero({ summary }: SavingsHeroProps) {
         <div className="flex flex-col gap-1 px-1">
           {summary.nonComparableItems.map((nc) => (
             <p key={nc.id} className="text-body text-ink-muted m-0">
-              {`Hindi kasama: ${nc.genericName} ${nc.strength} (walang presyo)`}
+              {t.excludedItemNotice(nc.genericName, nc.strength)}
             </p>
           ))}
         </div>

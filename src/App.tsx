@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useEffect, useState } from "react";
 import type { PrescriptionItem, SamplePrescription, ScanResult } from "./lib/types";
 import { SAMPLE_SCAN_INFECTION } from "./lib/sample-data";
@@ -8,6 +9,7 @@ import {
   clearAllScanHistory,
   type SavedScan,
 } from "./lib/history";
+import { LanguageProvider, useLanguage } from "./context/LanguageContext";
 import { AppShell } from "./components/AppShell";
 import { ScanOverlay } from "./components/ScanOverlay";
 import { CounterMode } from "./components/CounterMode";
@@ -19,7 +21,8 @@ import { ResultsScreen } from "./screens/ResultsScreen";
 
 export type ScreenState = "home" | "scanning" | "review" | "results";
 
-export default function App() {
+function AppContent() {
+  const { language, t } = useLanguage();
   const [screen, setScreen] = useState<ScreenState>("home");
   const [counterOpen, setCounterOpen] = useState<boolean>(false);
   const [history, setHistory] = useState<SavedScan[]>(() => loadScanHistory());
@@ -58,7 +61,7 @@ export default function App() {
     setHasLineCountMismatch(false);
     setScreen("scanning");
 
-    analyzePrescription(file)
+    analyzePrescription(file, false, language)
       .then((outcome) => {
         setScanResult(outcome.scanResult);
         setHasLineCountMismatch(outcome.hasLineCountMismatch);
@@ -68,7 +71,7 @@ export default function App() {
         const msg =
           err instanceof Error && err.message
             ? err.message
-            : "May nangyaring problema. Subukan ulit.";
+            : t.errorGeneric;
         setErrorMessage(msg);
         setScreen("home");
       });
@@ -79,7 +82,7 @@ export default function App() {
     setErrorMessage(null);
     setScreen("scanning");
 
-    analyzePrescription(currentFile, true)
+    analyzePrescription(currentFile, true, language)
       .then((outcome) => {
         setScanResult(outcome.scanResult);
         setHasLineCountMismatch(outcome.hasLineCountMismatch);
@@ -89,7 +92,7 @@ export default function App() {
         const msg =
           err instanceof Error && err.message
             ? err.message
-            : "May nangyaring problema sa Deep Scan. Subukan ulit.";
+            : t.errorDeepScan;
         setErrorMessage(msg);
         setScreen("review");
       });
@@ -108,14 +111,14 @@ export default function App() {
     setHasLineCountMismatch(false);
     setScreen("scanning");
 
-    analyzePrescription(sample.data)
+    analyzePrescription(sample.data, false, language)
       .then((outcome) => {
         setScanResult(outcome.scanResult);
         setHasLineCountMismatch(outcome.hasLineCountMismatch);
         setScreen("review");
       })
       .catch(() => {
-        setErrorMessage("May nangyaring problema. Subukan ulit.");
+        setErrorMessage(t.errorGeneric);
         setScreen("home");
       });
   };
@@ -157,12 +160,12 @@ export default function App() {
   };
 
   return (
-    <AppShell>
+    <AppShell onBrandClick={handleRescan}>
       {errorMessage && (
         <div className="mb-4 flex flex-col gap-2">
           <EmptyState tone="danger" message={errorMessage} />
           <SecondaryButton variant="outline" onClick={() => setErrorMessage(null)}>
-            Mag-scan ulit
+            {t.scanAgain}
           </SecondaryButton>
         </div>
       )}
@@ -207,5 +210,13 @@ export default function App() {
         />
       )}
     </AppShell>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }

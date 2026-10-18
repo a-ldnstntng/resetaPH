@@ -1,5 +1,6 @@
 // src/lib/sample-data.ts
 import type { ScanResult, Branch, SamplePrescription, PharmacyId } from "./types";
+import type { Language } from "./i18n";
 
 export const PHARMACY_LABEL: Record<PharmacyId, string> = {
   tgp: "TGP / Generika",
@@ -30,7 +31,9 @@ export const SAMPLE_SCAN_INFECTION: ScanResult = {
       durationDays: 7,
       slots: ["umaga", "gabi"],
       mealNote: "Pagkatapos kumain",
+      mealNoteEn: "Take after meals",
       noteTl: "Tapusin ang buong 7 araw kahit magaling na ang pakiramdam para maiwasan ang antibiotic resistance.",
+      noteEn: "Finish the full 7-day course even if feeling better to prevent antibiotic resistance.",
       uncertainFields: [],
       genericPrices: [
         { pharmacyId: "tgp", unitPrice: 18.0, asOf: "2026-03" },
@@ -53,7 +56,9 @@ export const SAMPLE_SCAN_INFECTION: ScanResult = {
       durationDays: 30,
       slots: ["umaga"],
       mealNote: "Kahit may laman o walang laman ang tiyan",
+      mealNoteEn: "With or without food",
       noteTl: "Maintenance para sa presyon ng dugo. Inumin araw-araw.",
+      noteEn: "Blood pressure maintenance. Take daily.",
       uncertainFields: [],
       genericPrices: [
         { pharmacyId: "tgp", unitPrice: 2.0, asOf: "2026-03" },
@@ -85,7 +90,9 @@ export const SAMPLE_SCAN_DIABETES: ScanResult = {
       durationDays: 30,
       slots: ["umaga", "gabi"],
       mealNote: "Kasamang kumain para iwas sakit ng tiyan",
+      mealNoteEn: "Take with meals to prevent stomach irritation",
       noteTl: "Para sa diabetes. Inumin kasabay ng almusal at hapunan.",
+      noteEn: "For diabetes. Take together with breakfast and dinner.",
       uncertainFields: [],
       genericPrices: [
         { pharmacyId: "tgp", unitPrice: 2.0, asOf: "2026-03" },
@@ -108,7 +115,9 @@ export const SAMPLE_SCAN_DIABETES: ScanResult = {
       durationDays: 30,
       slots: ["umaga"],
       mealNote: "Bago mag-almusal",
+      mealNoteEn: "Before breakfast",
       noteTl: "Pampababa ng blood sugar. Magbaon ng kendi sakaling mahilo.",
+      noteEn: "Lowers blood sugar. Keep candy handy in case of dizziness.",
       uncertainFields: [],
       genericPrices: [
         { pharmacyId: "tgp", unitPrice: 4.0, asOf: "2026-03" },
@@ -140,7 +149,9 @@ export const SAMPLE_SCAN_HYPERTENSION: ScanResult = {
       durationDays: 30,
       slots: ["umaga"],
       mealNote: "Kahit may laman o walang laman ang tiyan",
+      mealNoteEn: "With or without food",
       noteTl: "Para sa altapresyon at proteksyon sa bato. Inumin tuwing umaga.",
+      noteEn: "For hypertension and kidney protection. Take every morning.",
       uncertainFields: [],
       genericPrices: [
         { pharmacyId: "tgp", unitPrice: 3.0, asOf: "2026-03" },
@@ -163,7 +174,9 @@ export const SAMPLE_SCAN_HYPERTENSION: ScanResult = {
       durationDays: 30,
       slots: ["gabi"],
       mealNote: "Inumin sa gabi bago matulog",
+      mealNoteEn: "Take at night before bedtime",
       noteTl: "Pampababa ng kolesterol sa dugo. Mas mabuting inumin sa gabi.",
+      noteEn: "Lowers blood cholesterol. Best taken at night.",
       uncertainFields: [],
       genericPrices: [
         { pharmacyId: "tgp", unitPrice: 7.5, asOf: "2026-03" },
@@ -219,19 +232,29 @@ export const SAMPLES: SamplePrescription[] = [
   {
     id: "s1",
     label: "Antibiotic at Maintenance (Augmentin & Amlodipine)",
+    labelEn: "Antibiotic & Maintenance (Augmentin & Amlodipine)",
     imageSrc: "/samples/rx-1.jpg",
     data: SAMPLE_SCAN_INFECTION,
   },
   {
     id: "s2",
     label: "Diabetes Maintenance (Metformin at Glimepiride)",
+    labelEn: "Diabetes Maintenance (Metformin & Glimepiride)",
     imageSrc: "/samples/rx-2.jpg",
     data: SAMPLE_SCAN_DIABETES,
   },
   {
     id: "s3",
     label: "Hypertension at Cholesterol (Losartan at Atorvastatin)",
+    labelEn: "Hypertension & Cholesterol (Losartan & Atorvastatin)",
     imageSrc: "/samples/rx-3.jpg",
     data: SAMPLE_SCAN_HYPERTENSION,
   },
 ];
+
+export function getSamplePrescriptions(lang: Language): SamplePrescription[] {
+  return SAMPLES.map((s) => ({
+    ...s,
+    label: lang === "en" && s.labelEn ? s.labelEn : s.label,
+  }));
+}

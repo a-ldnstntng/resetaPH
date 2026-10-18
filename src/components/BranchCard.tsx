@@ -3,6 +3,8 @@ import { useState } from "react";
 import { Phone, Copy, Check, CheckCircle2, PhoneCall } from "lucide-react";
 import type { Branch, PrescriptionItem } from "../lib/types";
 import { formatDistance } from "../lib/geo";
+import { useLanguage } from "../context/LanguageContext";
+import type { Language } from "../lib/i18n";
 import { Card } from "./Card";
 import { Chip } from "./Chip";
 import { SecondaryButton } from "./SecondaryButton";
@@ -14,10 +16,23 @@ interface BranchCardProps {
   firstItem?: PrescriptionItem;
 }
 
-export function buildInquiryText(itemsOrFirst: PrescriptionItem[] | PrescriptionItem | undefined): string {
+export function buildInquiryText(
+  itemsOrFirst: PrescriptionItem[] | PrescriptionItem | undefined,
+  language: Language = "en"
+): string {
   if (!itemsOrFirst) return "";
   const items = Array.isArray(itemsOrFirst) ? itemsOrFirst : [itemsOrFirst];
   if (items.length === 0) return "";
+
+  if (language === "en") {
+    if (items.length === 1) {
+      const item = items[0];
+      return `Good day! Do you have available stock for ${item.genericName} ${item.strength}, ${item.quantity} ${item.form}? Thank you!`;
+    }
+    const lines = items.map((i) => `- ${i.genericName} ${i.strength} (${i.quantity} ${i.form})`).join("\n");
+    return `Good day! Do you have available stock for these medications:\n${lines}\nThank you!`;
+  }
+
   if (items.length === 1) {
     const item = items[0];
     return `Magandang araw po! Mayroon po ba kayong ${item.genericName} ${item.strength}, ${item.quantity} na ${item.form}?`;
@@ -32,12 +47,13 @@ export function BranchCard({
   items,
   firstItem,
 }: BranchCardProps) {
+  const { language, t } = useLanguage();
   const [copied, setCopied] = useState(false);
   const activeItems = items && items.length > 0 ? items : firstItem ? [firstItem] : [];
 
   const handleCopy = async () => {
     if (activeItems.length === 0) return;
-    const text = buildInquiryText(activeItems);
+    const text = buildInquiryText(activeItems, language);
     try {
       if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
         await navigator.clipboard.writeText(text);
@@ -68,7 +84,7 @@ export function BranchCard({
           {formatDistance(distanceMeters)}
         </span>
         <span className="text-caption text-ink-muted">
-          humigit-kumulang, tuwid na linya
+          {t.distanceNote}
         </span>
       </div>
 
@@ -82,7 +98,7 @@ export function BranchCard({
             tone="primary"
             icon={<CheckCircle2 className="w-4 h-4 text-primary" />}
           >
-            Karaniwang may stock
+            {t.usuallyInStock}
           </Chip>
         </div>
       )}
@@ -93,7 +109,7 @@ export function BranchCard({
             tone="warn"
             icon={<PhoneCall className="w-4 h-4 text-warn-ink" />}
           >
-            Tumawag para makumpirma
+            {t.callToConfirm}
           </Chip>
         </div>
       )}
@@ -105,19 +121,19 @@ export function BranchCard({
             className="w-full min-h-[56px] px-5 py-3 rounded-[16px] bg-primary text-surface text-body-strong flex items-center justify-center gap-2 no-underline"
           >
             <Phone className="w-5 h-5" aria-hidden="true" />
-            <span>Tawagan</span>
+            <span>{t.btnCall}</span>
           </a>
         ) : (
           <div className="flex flex-col gap-1">
             <SecondaryButton
               disabled
               icon={<Phone className="w-5 h-5" />}
-              aria-label="Tawagan (Walang numero pa)"
+              aria-label={`${t.btnCall} (${t.noPhoneYet})`}
             >
-              Tawagan
+              {t.btnCall}
             </SecondaryButton>
             <span className="text-body text-ink-muted text-center">
-              Walang numero pa
+              {t.noPhoneYet}
             </span>
           </div>
         )}
@@ -133,7 +149,7 @@ export function BranchCard({
             )
           }
         >
-          {copied ? "Nakopya" : "Kopyahin ang tanong"}
+          {copied ? t.btnCopied : t.btnCopyInquiry}
         </SecondaryButton>
       </div>
     </Card>
