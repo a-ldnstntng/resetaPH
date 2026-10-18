@@ -37,12 +37,16 @@ export function ListenButton({ items }: ListenButtonProps) {
   const [speaking, setSpeaking] = useState(false);
 
   useEffect(() => {
-    // VERIFY: window.speechSynthesis and SpeechSynthesisUtterance browser support check
     const isSupported =
       typeof window !== "undefined" &&
       "speechSynthesis" in window &&
       typeof window.SpeechSynthesisUtterance !== "undefined";
     setSupported(isSupported);
+
+    if (isSupported) {
+      // Warm up voices on mount
+      window.speechSynthesis.getVoices();
+    }
 
     return () => {
       if (isSupported) {

@@ -1,8 +1,13 @@
-// src/App.tsx
 import { useEffect, useState } from "react";
 import type { PrescriptionItem, SamplePrescription, ScanResult } from "./lib/types";
 import { SAMPLE_SCAN_INFECTION } from "./lib/sample-data";
 import { analyzePrescription, cloneScanResult } from "./lib/scan";
+import {
+  loadScanHistory,
+  saveScanToHistory,
+  clearAllScanHistory,
+  type SavedScan,
+} from "./lib/history";
 import { AppShell } from "./components/AppShell";
 import { ScanOverlay } from "./components/ScanOverlay";
 import { CounterMode } from "./components/CounterMode";
@@ -17,6 +22,7 @@ export type ScreenState = "home" | "scanning" | "review" | "results";
 export default function App() {
   const [screen, setScreen] = useState<ScreenState>("home");
   const [counterOpen, setCounterOpen] = useState<boolean>(false);
+  const [history, setHistory] = useState<SavedScan[]>(() => loadScanHistory());
   const [scanResult, setScanResult] = useState<ScanResult>(() =>
     cloneScanResult(SAMPLE_SCAN_INFECTION)
   );
@@ -123,6 +129,25 @@ export default function App() {
     setScreen("home");
   };
 
+  const handleSelectHistoryScan = (saved: SavedScan) => {
+    setScanResult(saved.scanResult);
+    setHasLineCountMismatch(false);
+    setScanImageUrl(null);
+    setScanSampleLabel(null);
+    setScreen("results");
+  };
+
+  const handleClearHistory = () => {
+    clearAllScanHistory();
+    setHistory([]);
+  };
+
+  const handleConfirmReview = () => {
+    const updated = saveScanToHistory(scanResult);
+    setHistory(updated);
+    setScreen("results");
+  };
+
   return (
     <AppShell>
       {errorMessage && (
@@ -138,6 +163,9 @@ export default function App() {
         <HomeScreen
           onStartFileScan={handleStartFileScan}
           onStartSampleScan={handleStartSampleScan}
+          history={history}
+          onSelectHistoryScan={handleSelectHistoryScan}
+          onClearHistory={handleClearHistory}
         />
       )}
 
@@ -150,7 +178,7 @@ export default function App() {
           scanResult={scanResult}
           hasLineCountMismatch={hasLineCountMismatch}
           onUpdateItem={handleUpdateItem}
-          onConfirm={() => setScreen("results")}
+          onConfirm={handleConfirmReview}
           onRescan={handleRescan}
           onDeepScan={currentFile ? handleDeepScan : undefined}
         />

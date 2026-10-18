@@ -59,6 +59,7 @@ export function computeBasketSummary(items: PrescriptionItem[]): BasketSummary {
   let cheapestPharmacyId: PharmacyId | null = null;
   let latestAsOf: string | null = null;
   const nonComparableItems: PrescriptionItem[] = [];
+  const pharmacyTotals: Record<PharmacyId, number> = { tgp: 0, watsons: 0, mercury: 0 };
 
   for (const item of items) {
     const bTotal = brandTotal(item);
@@ -67,14 +68,27 @@ export function computeBasketSummary(items: PrescriptionItem[]): BasketSummary {
       hasComparable = true;
       totalBrand += bTotal;
       totalCheapestGeneric += cheapEntry.unitPrice * item.quantity;
-      if (cheapestPharmacyId === null) {
-        cheapestPharmacyId = cheapEntry.pharmacyId;
-      }
       if (cheapEntry.asOf !== null) {
         latestAsOf = cheapEntry.asOf;
       }
+
+      for (const pid of ["tgp", "watsons", "mercury"] as PharmacyId[]) {
+        const pTotal = genericTotal(item, pid);
+        if (pTotal !== null) {
+          pharmacyTotals[pid] += pTotal;
+        }
+      }
     } else {
       nonComparableItems.push(item);
+    }
+  }
+
+  // Find pharmacy with the lowest non-zero total basket cost
+  let minCost = Infinity;
+  for (const pid of ["tgp", "watsons", "mercury"] as PharmacyId[]) {
+    if (pharmacyTotals[pid] > 0 && pharmacyTotals[pid] < minCost) {
+      minCost = pharmacyTotals[pid];
+      cheapestPharmacyId = pid;
     }
   }
 

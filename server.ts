@@ -169,11 +169,58 @@ function stripJsonFences(text: string): string {
   return trimmed;
 }
 
+// Rate limiter: Max 15 scan requests per minute per IP address
+const scanRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string, maxRequests = 15, windowMs = 60000): boolean {
+  const now = Date.now();
+  const entry = scanRateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    scanRateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= maxRequests) {
+    return false;
+  }
+  entry.count += 1;
+  return true;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of scanRateLimitMap.entries()) {
+    if (now > entry.resetAt) {
+      scanRateLimitMap.delete(ip);
+    }
+  }
+}, 300000);
+
 async function startServer() {
   const app = express();
-  app.use(express.json({ limit: "50mb" }));
+  app.set("trust proxy", 1);
+  app.use(express.json({ limit: "10mb" }));
+
+  app.get("/healthz", (_req, res) => {
+    res.json({
+      status: "ok",
+      uptimeSeconds: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   app.post("/api/scan", async (req, res) => {
+    const clientIp =
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      req.ip ||
+      "unknown";
+
+    if (!checkRateLimit(clientIp)) {
+      res.status(429).json({
+        error: "Masyadong maraming request. Maghintay ng 1 minuto bago mag-scan ulit.",
+      });
+      return;
+    }
+
     const startMs = Date.now();
     try {
       const { mimeType, base64Data, deepScan } = req.body as {
@@ -276,10 +323,17 @@ async function startServer() {
     app.use(vite.middlewares);
   }
 
-  const port = 3000;
-  app.listen(port, "0.0.0.0", () => {
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  const server = app.listen(port, "0.0.0.0", () => {
     console.log(`Server listening on http://0.0.0.0:${port}`);
   });
+
+  const shutdown = () => {
+    console.log("Shutting down server gracefully...");
+    server.close(() => process.exit(0));
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 startServer();
