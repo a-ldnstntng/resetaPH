@@ -216,19 +216,97 @@ function readFileAsBase64FullResolution(
   });
 }
 
+/**
+ * Enhances handwriting contrast, removes dim phone camera shadows, and downscales
+ * safely to max 2000px using standard browser HTML5 Canvas.
+ */
+async function enhancePrescriptionImage(
+  file: File
+): Promise<{ mimeType: string; base64Data: string }> {
+  if (typeof window === "undefined" || !file.type.startsWith("image/")) {
+    return readFileAsBase64FullResolution(file);
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      let width = img.naturalWidth || img.width;
+      let height = img.naturalHeight || img.height;
+
+      const maxEdge = 2000;
+      if (width > maxEdge || height > maxEdge) {
+        if (width > height) {
+          height = Math.round((height * maxEdge) / width);
+          width = maxEdge;
+        } else {
+          width = Math.round((width * maxEdge) / height);
+          height = maxEdge;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        readFileAsBase64FullResolution(file).then(resolve);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      try {
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const d = imgData.data;
+
+        // Auto contrast boost: lighten paper background and deepen ballpoint pen strokes
+        for (let i = 0; i < d.length; i += 4) {
+          const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          const factor = 1.25;
+          const adjusted = factor * (lum - 128) + 128;
+          const clamped = Math.max(0, Math.min(255, adjusted));
+
+          d[i] = Math.round(d[i] * 0.3 + clamped * 0.7);
+          d[i + 1] = Math.round(d[i + 1] * 0.3 + clamped * 0.7);
+          d[i + 2] = Math.round(d[i + 2] * 0.3 + clamped * 0.7);
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        const commaIndex = dataUrl.indexOf(",");
+        const base64Data = commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
+        resolve({ mimeType: "image/jpeg", base64Data });
+      } catch {
+        readFileAsBase64FullResolution(file).then(resolve);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      readFileAsBase64FullResolution(file).then(resolve);
+    };
+
+    img.src = url;
+  });
+}
+
 export async function analyzePrescription(
-  input?: ScanResult | File
+  input?: ScanResult | File,
+  deepScan = false
 ): Promise<AnalyzePrescriptionOutcome> {
   if (input instanceof File) {
-    const { mimeType, base64Data } = await readFileAsBase64FullResolution(input);
+    const { mimeType, base64Data } = await enhancePrescriptionImage(input);
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 60000);
+    const timeoutId = window.setTimeout(() => controller.abort(), deepScan ? 90000 : 45000);
 
     try {
       const response = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mimeType, base64Data }),
+        body: JSON.stringify({ mimeType, base64Data, deepScan }),
         signal: controller.signal,
       });
 

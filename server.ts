@@ -9,8 +9,26 @@ import { GoogleGenAI, ThinkingLevel, Type, type Schema } from "@google/genai";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const EXTRACTION_PROMPT =
-  "List every medication on this prescription. Prescriptions often have 4 to 10 lines. Do not stop after the first few. Include lines that are hard to read and mark them uncertain. Do not invent medicines that are not written.";
+const EXTRACTION_PROMPT = `List every medication on this prescription slip.
+PHILIPPINE MEDICAL PRESCRIPTION RULES & SHORTHAND:
+1. Shorthand Frequencies & Administration:
+   - OD = once daily (umaga), BID = twice daily (umaga, gabi), TID = 3x daily (umaga, tanghali, gabi), QID = 4x daily, PRN = as needed, HS = at bedtime (gabi).
+   - PC = post cibum (pagkatapos kumain), AC = ante cibum (bago kumain), PO = per orem (oral).
+   - Quantities: #14, #30, No. 30, x14 means total units to dispense.
+   - Forms: tab (tablet), cap (capsule), syr/susp (syrup/suspension), neb (nebule).
+2. Deciphering Doctor Cursive & Standard PH Formulations:
+   - Philippine doctors frequently write Brand (Generic) or Generic alone.
+   - If letters in cursive are ambiguous, cross-reference standard commercial strengths in the Philippines:
+     * Co-Amoxiclav: 625mg, 1g
+     * Amoxicillin: 250mg, 500mg
+     * Cefuroxime: 500mg, Cefalexin: 500mg
+     * Amlodipine: 5mg, 10mg, Losartan: 50mg, 100mg
+     * Metformin: 500mg, 850mg, Glimepiride: 2mg
+     * Paracetamol: 500mg, Mefenamic Acid: 500mg, Ibuprofen: 200mg/400mg
+     * Atorvastatin: 20mg, 40mg, Simvastatin: 20mg
+     * Cetirizine: 10mg, Omeprazole: 20mg, Salbutamol: 2mg
+   - Do not stop after the first few lines; prescriptions typically have 2 to 6 medications.
+   - Do not invent medicines not written. If any field (genericName, strength, quantity, sig) is difficult to read, include the item and list the field names in "uncertainFields".`;
 
 const extractionSchema: Schema = {
   type: Type.OBJECT,
@@ -158,9 +176,10 @@ async function startServer() {
   app.post("/api/scan", async (req, res) => {
     const startMs = Date.now();
     try {
-      const { mimeType, base64Data } = req.body as {
+      const { mimeType, base64Data, deepScan } = req.body as {
         mimeType?: string;
         base64Data?: string;
+        deepScan?: boolean;
       };
 
       if (!mimeType || !base64Data) {
@@ -168,10 +187,11 @@ async function startServer() {
         return;
       }
 
+      const isDeep = Boolean(deepScan);
       console.log(
         `[ResetaPH Scan] Starting Gemini extraction (${mimeType}, ${Math.round(
           base64Data.length / 1024
-        )} KB base64)...`
+        )} KB base64, deepScan=${isDeep})...`
       );
 
       const ai = new GoogleGenAI({
@@ -182,6 +202,10 @@ async function startServer() {
           },
         },
       });
+
+      const promptText = isDeep
+        ? `${EXTRACTION_PROMPT}\n\nDEEP DECIPHER MODE: Examine ambiguous cursive handwriting strokes meticulously. Cross-reference doctor abbreviations and letter patterns with standard Philippine FDA drug formulations.\n\nFirst transcribe every numbered medication block or line on the slip in reading order into \`lines\` with \`rawText\` and \`isMedication\`. Set \`medicationLineCount\` to the count of lines where \`isMedication\` is true. Then populate \`items\` with one entry for every line where \`isMedication\` is true. Never drop a medication line silently—if any field (genericName, strength, quantity, sig) is hard to read or missing, still include the item and list the uncertain field names in \`uncertainFields\`. Use valid slots from ["umaga", "tanghali", "gabi"].`
+        : `${EXTRACTION_PROMPT}\n\nFirst transcribe every numbered medication block or line on the slip in reading order into \`lines\` with \`rawText\` and \`isMedication\`. Set \`medicationLineCount\` to the count of lines where \`isMedication\` is true. Then populate \`items\` with one entry for every line where \`isMedication\` is true. Never drop a medication line silently—if any field (genericName, strength, quantity, sig) is hard to read or missing, still include the item and list the uncertain field names in \`uncertainFields\`. Use valid slots from ["umaga", "tanghali", "gabi"].`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.8-flash",
@@ -194,7 +218,7 @@ async function startServer() {
               },
             },
             {
-              text: `${EXTRACTION_PROMPT}\n\nFirst transcribe every numbered medication block or line on the slip in reading order into \`lines\` with \`rawText\` and \`isMedication\`. Set \`medicationLineCount\` to the count of lines where \`isMedication\` is true. Then populate \`items\` with one entry for every line where \`isMedication\` is true. Never drop a medication line silently—if any field (genericName, strength, quantity, sig) is hard to read or missing, still include the item and list the uncertain field names in \`uncertainFields\`. Use valid slots from ["umaga", "tanghali", "gabi"].`,
+              text: promptText,
             },
           ],
         },
@@ -203,7 +227,7 @@ async function startServer() {
           responseSchema: extractionSchema,
           maxOutputTokens: 16384,
           thinkingConfig: {
-            thinkingLevel: ThinkingLevel.LOW,
+            thinkingLevel: isDeep ? ThinkingLevel.HIGH : ThinkingLevel.LOW,
           },
         },
       });

@@ -20,6 +20,7 @@ export default function App() {
   const [scanResult, setScanResult] = useState<ScanResult>(() =>
     cloneScanResult(SAMPLE_SCAN_INFECTION)
   );
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [hasLineCountMismatch, setHasLineCountMismatch] = useState<boolean>(false);
   const [scanImageUrl, setScanImageUrl] = useState<string | null>(null);
   const [scanSampleLabel, setScanSampleLabel] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export default function App() {
     setObjectUrlToRevoke(url);
     setScanImageUrl(url);
     setScanSampleLabel(null);
+    setCurrentFile(file);
     setErrorMessage(null);
     setHasLineCountMismatch(false);
     setScreen("scanning");
@@ -62,12 +64,30 @@ export default function App() {
       });
   };
 
+  const handleDeepScan = () => {
+    if (!currentFile) return;
+    setErrorMessage(null);
+    setScreen("scanning");
+
+    analyzePrescription(currentFile, true)
+      .then((outcome) => {
+        setScanResult(outcome.scanResult);
+        setHasLineCountMismatch(outcome.hasLineCountMismatch);
+        setScreen("review");
+      })
+      .catch(() => {
+        setErrorMessage("May nangyaring problema sa Deep Scan. Subukan ulit.");
+        setScreen("review");
+      });
+  };
+
   const handleStartSampleScan = (sample: SamplePrescription) => {
     if (!sample.data) return;
     if (objectUrlToRevoke) {
       URL.revokeObjectURL(objectUrlToRevoke);
       setObjectUrlToRevoke(null);
     }
+    setCurrentFile(null);
     setScanImageUrl(sample.imageSrc);
     setScanSampleLabel(sample.label);
     setErrorMessage(null);
@@ -97,6 +117,7 @@ export default function App() {
   };
 
   const handleRescan = () => {
+    setCurrentFile(null);
     setCounterOpen(false);
     setHasLineCountMismatch(false);
     setScreen("home");
@@ -131,6 +152,7 @@ export default function App() {
           onUpdateItem={handleUpdateItem}
           onConfirm={() => setScreen("results")}
           onRescan={handleRescan}
+          onDeepScan={currentFile ? handleDeepScan : undefined}
         />
       )}
 

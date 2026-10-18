@@ -1,5 +1,4 @@
-// src/screens/ReviewScreen.tsx
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Sparkles } from "lucide-react";
 import type { ScanResult, PrescriptionItem } from "../lib/types";
 import { StepIndicator } from "../components/StepIndicator";
 import { Card } from "../components/Card";
@@ -16,6 +15,7 @@ interface ReviewScreenProps {
   onUpdateItem: (itemId: string, updater: (item: PrescriptionItem) => PrescriptionItem) => void;
   onConfirm: () => void;
   onRescan: () => void;
+  onDeepScan?: () => void;
 }
 
 export function ReviewScreen({
@@ -24,6 +24,7 @@ export function ReviewScreen({
   onUpdateItem,
   onConfirm,
   onRescan,
+  onDeepScan,
 }: ReviewScreenProps) {
   const formatHowToTake = (item: PrescriptionItem): string => {
     const parts: string[] = [`${item.dosesPerDay}x isang araw`];
@@ -55,6 +56,26 @@ export function ReviewScreen({
           icon={<AlertTriangle className="w-6 h-6" />}
           message="May hindi nabasa na gamot. Pakisigurado ang reseta."
         />
+      )}
+
+      {onDeepScan && (hasLineCountMismatch || scanResult.items.some((i) => i.uncertainFields.length > 0)) && (
+        <div className="rounded-[16px] bg-primary-soft border border-border p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary shrink-0" />
+            <span className="text-body-strong text-ink">Hindi tiyak ang sulat-kamay?</span>
+          </div>
+          <p className="text-body text-ink-muted m-0">
+            Maaaring gumamit ng mas malalim na AI reasoning upang basahin ang malalabong cursive o shorthand ng doktor.
+          </p>
+          <button
+            type="button"
+            onClick={onDeepScan}
+            className="mt-1 w-full min-h-[44px] rounded-[12px] bg-primary text-surface text-body-strong flex items-center justify-center gap-2 cursor-pointer hover:opacity-95 transition-opacity"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Subukan ang Deep AI Decipher</span>
+          </button>
+        </div>
       )}
 
       <Card className="flex flex-col gap-2">
