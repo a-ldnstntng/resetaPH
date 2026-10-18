@@ -161,6 +161,12 @@ export function ResultsScreen({
             items={scanResult.items}
             scaled={scaleScheduleText}
           />
+
+          <div className="pt-2">
+            <SecondaryButton variant="text" onClick={onRescan}>
+              Mag-scan ulit
+            </SecondaryButton>
+          </div>
         </section>
       )}
 
@@ -209,9 +215,15 @@ export function ResultsScreen({
                 key={branch.id}
                 branch={branch}
                 distanceMeters={distanceMeters}
-                firstItem={scanResult.items[0]}
+                items={scanResult.items}
               />
             ))}
+          </div>
+
+          <div className="pt-2">
+            <SecondaryButton variant="text" onClick={onRescan}>
+              Mag-scan ulit
+            </SecondaryButton>
           </div>
         </section>
       )}

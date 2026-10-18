@@ -10,25 +10,35 @@ import { SecondaryButton } from "./SecondaryButton";
 interface BranchCardProps {
   branch: Branch;
   distanceMeters: number;
-  firstItem: PrescriptionItem | undefined;
+  items?: PrescriptionItem[];
+  firstItem?: PrescriptionItem;
 }
 
-export function buildInquiryText(item: PrescriptionItem): string {
-  return `Magandang araw po! Mayroon po ba kayong ${item.genericName} ${item.strength}, ${item.quantity} na ${item.form}?`;
+export function buildInquiryText(itemsOrFirst: PrescriptionItem[] | PrescriptionItem | undefined): string {
+  if (!itemsOrFirst) return "";
+  const items = Array.isArray(itemsOrFirst) ? itemsOrFirst : [itemsOrFirst];
+  if (items.length === 0) return "";
+  if (items.length === 1) {
+    const item = items[0];
+    return `Magandang araw po! Mayroon po ba kayong ${item.genericName} ${item.strength}, ${item.quantity} na ${item.form}?`;
+  }
+  const lines = items.map((i) => `- ${i.genericName} ${i.strength} (${i.quantity} ${i.form})`).join("\n");
+  return `Magandang araw po! Mayroon po ba kayong stock ng mga gamot na ito:\n${lines}\nMaraming salamat po!`;
 }
 
 export function BranchCard({
   branch,
   distanceMeters,
+  items,
   firstItem,
 }: BranchCardProps) {
   const [copied, setCopied] = useState(false);
+  const activeItems = items && items.length > 0 ? items : firstItem ? [firstItem] : [];
 
   const handleCopy = async () => {
-    if (!firstItem) return;
-    const text = buildInquiryText(firstItem);
+    if (activeItems.length === 0) return;
+    const text = buildInquiryText(activeItems);
     try {
-      // VERIFY: navigator.clipboard.writeText standard promise API
       if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
         await navigator.clipboard.writeText(text);
       }
@@ -114,7 +124,7 @@ export function BranchCard({
 
         <SecondaryButton
           onClick={handleCopy}
-          disabled={!firstItem}
+          disabled={activeItems.length === 0}
           icon={
             copied ? (
               <Check className="w-5 h-5 text-primary" />
