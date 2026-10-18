@@ -324,8 +324,8 @@ async function startServer() {
   }
 
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-  const server = app.listen(port, "0.0.0.0", () => {
-    console.log(`Server listening on http://0.0.0.0:${port}`);
+  const server = app.listen(port, () => {
+    console.log(`Server listening on http://localhost:${port}`);
   });
 
   const shutdown = () => {
