@@ -9,7 +9,7 @@ import ph.reseta.app.data.repository.PrescriptionRepository
 import ph.reseta.app.data.repository.PricingRepository
 import ph.reseta.app.data.repository.RoomPrescriptionRepository
 import ph.reseta.app.data.repository.SamplePharmacyRepository
-import ph.reseta.app.data.repository.SamplePricingRepository
+import ph.reseta.app.data.repository.RoomPricingRepository
 
 interface AppContainer {
     val prescriptionRepository: PrescriptionRepository
@@ -30,7 +30,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val pricingRepository: PricingRepository by lazy {
-        SamplePricingRepository()
+        ph.reseta.app.data.repository.RoomPricingRepository(database.priceObservationDao())
     }
 
     override val pharmacyRepository: PharmacyRepository by lazy {

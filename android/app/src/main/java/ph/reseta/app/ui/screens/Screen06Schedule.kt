@@ -17,7 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -25,9 +25,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,17 +44,19 @@ import ph.reseta.app.theme.ResetaInkMuted
 import ph.reseta.app.theme.ResetaPHTheme
 import ph.reseta.app.theme.ResetaPrimary
 import ph.reseta.app.theme.ResetaPrimarySoft
-import ph.reseta.app.theme.ResetaSurface
 import ph.reseta.app.ui.components.PrimaryResetaButton
 import ph.reseta.app.ui.components.ResetaCard
 import ph.reseta.app.ui.components.ResetaTopBar
 import ph.reseta.app.ui.components.SecondaryResetaButton
+import ph.reseta.app.util.ResetaTtsManager
 import ph.reseta.model.PrescriptionItem
 import ph.reseta.model.PrescriptionScan
 import ph.reseta.sample.SampleData
 
 /**
- * SCREEN 6: Dosage Schedule & Medication Reminders (Rule 4: TTS runtime check).
+ * SCREEN 6: Dosage Schedule & Medication Reminders.
+ * Rule 4: Text-to-speech checks for fil-PH voice at runtime, falls back if missing,
+ * never claims it works offline, and builds spoken text strictly from schedule fields.
  */
 @Composable
 fun Screen06Schedule(
@@ -58,6 +65,16 @@ fun Screen06Schedule(
     onCounterModeClick: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val ttsManager = remember { ResetaTtsManager(context) }
+    val ttsState by ttsManager.state.collectAsState()
+
+    DisposableEffect(Unit) {
+        onDispose {
+            ttsManager.shutdown()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -86,27 +103,56 @@ fun Screen06Schedule(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    val isSpeaking = ttsState is ResetaTtsManager.TtsState.Speaking
+
                     SecondaryResetaButton(
-                        text = stringResource(R.string.listen_schedule_cta),
-                        onClick = onListenClick,
-                        icon = Icons.AutoMirrored.Filled.VolumeUp
+                        text = if (isSpeaking) "Itigil ang Pagbasa" else stringResource(R.string.listen_schedule_cta),
+                        onClick = {
+                            if (isSpeaking) {
+                                ttsManager.stop()
+                            } else {
+                                ttsManager.speakSchedule(scanResult.items)
+                            }
+                        },
+                        icon = if (isSpeaking) Icons.Default.Stop else Icons.AutoMirrored.Filled.VolumeUp
                     )
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = null,
-                            tint = ResetaInkMuted,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = stringResource(R.string.audio_fallback_notice),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = ResetaInkMuted
-                        )
+                    // Show runtime voice status / fallback notice
+                    val readyState = ttsState as? ResetaTtsManager.TtsState.Ready
+                    if (readyState?.notice != null) {
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Color(0xFFD97706),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = readyState.notice,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ResetaInkMuted
+                            )
+                        }
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = ResetaInkMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Paalala: Kailangan ng internet connection para sa boses at hindi ito gumagana offline.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ResetaInkMuted
+                            )
+                        }
                     }
                 }
             }
@@ -149,56 +195,54 @@ fun ScheduleSlotCard(
 ) {
     if (items.isEmpty()) return
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = slotTitle,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = ResetaPrimary
-        )
-        Text(
-            text = slotSubtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = ResetaInkMuted
-        )
+    ResetaCard {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Column {
+                Text(
+                    text = slotTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = ResetaPrimary
+                )
+                Text(
+                    text = slotSubtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ResetaInkMuted
+                )
+            }
 
-        items.forEach { item ->
-            ResetaCard {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+            items.forEach { item ->
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = ResetaPrimarySoft,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = item.genericName,
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "${item.genericName} (${item.brandName ?: "Generic"})",
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = ResetaInk
                         )
                         Text(
-                            text = "${item.strength} (${item.form})",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = ResetaPrimary
-                        )
-                    }
-
-                    val meal = item.mealNoteTl
-                    if (!meal.isNullOrEmpty()) {
-                        Text(
-                            text = "Oras ng pag-inom: $meal",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = ResetaInk
-                        )
-                    }
-
-                    val note = item.noteTl
-                    if (!note.isNullOrEmpty()) {
-                        Text(
-                            text = note,
+                            text = "${item.strength} • ${item.dosesPerDay} beses sa isang araw • ${item.quantity} piraso",
                             style = MaterialTheme.typography.bodySmall,
                             color = ResetaInkMuted
                         )
+                        if (!item.mealNoteTl.isNullOrBlank()) {
+                            Text(
+                                text = "Paalala: ${item.mealNoteTl}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ResetaPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
@@ -206,7 +250,7 @@ fun ScheduleSlotCard(
     }
 }
 
-@Preview(showBackground = true, name = "Screen 6 - Dosage Schedule")
+@Preview(showBackground = true, name = "Screen 6 - Medication Schedule")
 @Composable
 fun Screen06SchedulePreview() {
     ResetaPHTheme {

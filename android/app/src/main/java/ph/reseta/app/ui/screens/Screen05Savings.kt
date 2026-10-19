@@ -175,7 +175,7 @@ fun Screen05Savings(
                                     color = ResetaInk
                                 )
                                 Text(
-                                    text = "Survey date: ${chainTotal.datedPriceReference}",
+                                    text = if (chainTotal.isSample) "Halimbawang presyo" else "Tantya · ${chainTotal.datedPriceReference}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = ResetaInkMuted
                                 )
@@ -231,7 +231,7 @@ fun Screen05Savings(
                                     fontWeight = FontWeight.Bold,
                                     color = ResetaInk
                                 )
-                                PriceEstimateBadge(label = stringResource(R.string.price_estimate_badge))
+                                PriceEstimateBadge(label = if (estimate.isSample) "Sample price" else "Tantya · ${estimate.recordedDate}")
                             }
 
                             Row(

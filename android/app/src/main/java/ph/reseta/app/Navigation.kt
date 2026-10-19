@@ -280,8 +280,20 @@ fun MainNavigation() {
                         mapViewModel.selectBranch(branch)
                         currentScreen = AppMockupScreen.STORE_DETAIL
                     },
-                    onDirectionsClick = { /* Directions in Stage 4 */ },
-                    onCopyInquiry = { /* Inquiry copy to clipboard */ },
+                    onDirectionsClick = { branch ->
+                        val uri = android.net.Uri.parse("geo:${branch.latitude},${branch.longitude}?q=${branch.latitude},${branch.longitude}(${android.net.Uri.encode(branch.name)})")
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                        runCatching { context.startActivity(intent) }
+                    },
+                    onCopyInquiry = { branch ->
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText(
+                            "ResetaPH Inquiry",
+                            "Magandang araw po! Nais ko pong itanong kung may available kayong gamot sa ${branch.name}? Maraming salamat po!"
+                        )
+                        clipboard.setPrimaryClip(clip)
+                        android.widget.Toast.makeText(context, "Na-kopyang inquiry text!", android.widget.Toast.LENGTH_SHORT).show()
+                    },
                     onBack = { currentScreen = AppMockupScreen.HOME }
                 )
                 AppMockupScreen.HISTORY -> Screen09History(
@@ -308,9 +320,25 @@ fun MainNavigation() {
                 )
                 AppMockupScreen.STORE_DETAIL -> Screen12StoreDetail(
                     branch = mapUiState.selectedBranch ?: SampleData.sampleBranches.first(),
-                    onCallClick = { /* Phone intent */ },
-                    onDirectionsClick = { /* Directions intent */ },
-                    onCopyInquiryClick = { /* Clipboard */ },
+                    onCallClick = {
+                        // Phone number is null for sample data, no call action
+                    },
+                    onDirectionsClick = {
+                        val branch = mapUiState.selectedBranch ?: SampleData.sampleBranches.first()
+                        val uri = android.net.Uri.parse("geo:${branch.latitude},${branch.longitude}?q=${branch.latitude},${branch.longitude}(${android.net.Uri.encode(branch.name)})")
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                        runCatching { context.startActivity(intent) }
+                    },
+                    onCopyInquiryClick = {
+                        val branch = mapUiState.selectedBranch ?: SampleData.sampleBranches.first()
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText(
+                            "ResetaPH Inquiry",
+                            "Magandang araw po! Nais ko pong itanong kung may available kayong gamot sa ${branch.name}? Maraming salamat po!"
+                        )
+                        clipboard.setPrimaryClip(clip)
+                        android.widget.Toast.makeText(context, "Na-kopyang inquiry text!", android.widget.Toast.LENGTH_SHORT).show()
+                    },
                     onBack = { currentScreen = AppMockupScreen.MAP }
                 )
                 AppMockupScreen.ERROR -> ScreenError(

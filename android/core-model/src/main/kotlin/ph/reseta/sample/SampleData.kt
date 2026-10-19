@@ -78,50 +78,62 @@ object SampleData {
         scannedAtTimestamp = System.currentTimeMillis() - 3600000L
     )
 
+    /**
+     * Requirement 2: Branches come from an external data source to be provided.
+     * Until then, label every branch "Sample" and invent no addresses, phone numbers, hours, or stock claims.
+     */
     val sampleBranches = listOf(
         PharmacyBranch(
-            id = "branch-tgp-1",
-            name = "The Generics Pharmacy — Taft Ave",
+            id = "sample-tgp-1",
+            name = "The Generics Pharmacy [Sample]",
             chain = PharmacyChain.TGP,
-            address = "2410 Taft Avenue, Malate, Manila",
+            address = "Sample Location",
             latitude = 14.5685,
             longitude = 120.9934,
             distanceKm = 0.35,
-            phoneNumber = "(02) 8524-1122",
-            isOpenNow = true
+            phoneNumber = null,
+            openingHours = null,
+            stockClaim = null,
+            isSample = true
         ),
         PharmacyBranch(
-            id = "branch-mercury-1",
-            name = "Mercury Drug — Vito Cruz Branch",
+            id = "sample-mercury-1",
+            name = "Mercury Drug [Sample]",
             chain = PharmacyChain.MERCURY_DRUG,
-            address = "P. Ocampo St. cor. Taft Ave, Malate, Manila",
+            address = "Sample Location",
             latitude = 14.5638,
             longitude = 120.9947,
             distanceKm = 0.52,
-            phoneNumber = "(02) 8525-4567",
-            isOpenNow = true
+            phoneNumber = null,
+            openingHours = null,
+            stockClaim = null,
+            isSample = true
         ),
         PharmacyBranch(
-            id = "branch-watsons-1",
-            name = "Watsons — Harrison Plaza",
+            id = "sample-watsons-1",
+            name = "Watsons [Sample]",
             chain = PharmacyChain.WATSONS,
-            address = "F.B. Harrison St, Malate, Manila",
+            address = "Sample Location",
             latitude = 14.5612,
             longitude = 120.9890,
             distanceKm = 0.88,
-            phoneNumber = "(02) 8521-8899",
-            isOpenNow = true
+            phoneNumber = null,
+            openingHours = null,
+            stockClaim = null,
+            isSample = true
         ),
         PharmacyBranch(
-            id = "branch-southstar-1",
-            name = "South Star Drug — Quirino Ave",
+            id = "sample-southstar-1",
+            name = "South Star Drug [Sample]",
             chain = PharmacyChain.SOUTH_STAR,
-            address = "San Andres St cor. Quirino, Malate, Manila",
+            address = "Sample Location",
             latitude = 14.5710,
             longitude = 120.9912,
             distanceKm = 1.15,
-            phoneNumber = "(02) 8523-7744",
-            isOpenNow = true
+            phoneNumber = null,
+            openingHours = null,
+            stockClaim = null,
+            isSample = true
         )
     )
 }

@@ -343,18 +343,20 @@ export const PH_DRUG_CATALOG: DrugCatalogEntry[] = [
   },
 ];
 
-function normalize(s: string): string {
+function normalize(s?: string | null): string {
+  if (!s) return "";
   return s.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-function parseMg(strength: string): number | null {
+function parseMg(strength?: string | null): number | null {
+  if (!strength) return null;
   const match = strength.match(/(\d+(?:\.\d+)?)\s*mg/i);
   return match ? parseFloat(match[1]) : null;
 }
 
 export function lookupCatalogItem(
   genericOrBrand: string,
-  strength: string
+  strength: string = ""
 ): DrugCatalogEntry | undefined {
   const cleanInput = normalize(genericOrBrand);
   const cleanStrength = normalize(strength);

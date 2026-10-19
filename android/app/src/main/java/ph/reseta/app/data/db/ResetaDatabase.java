@@ -10,8 +10,8 @@ import androidx.room.RoomDatabase;
  * Disables automated backup and keeps only patient-controlled structured prescription data.
  */
 @Database(
-    entities = {PrescriptionScanEntity.class},
-    version = 1,
+    entities = {PrescriptionScanEntity.class, PriceObservationEntity.class},
+    version = 2,
     exportSchema = false
 )
 public abstract class ResetaDatabase extends RoomDatabase {
@@ -20,6 +20,7 @@ public abstract class ResetaDatabase extends RoomDatabase {
     private static volatile ResetaDatabase INSTANCE;
 
     public abstract PrescriptionScanDao prescriptionScanDao();
+    public abstract PriceObservationDao priceObservationDao();
 
     public static ResetaDatabase getInstance(Context context) {
         if (INSTANCE == null) {

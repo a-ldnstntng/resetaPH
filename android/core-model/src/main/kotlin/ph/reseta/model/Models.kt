@@ -38,12 +38,34 @@ data class SafetyWarning(
 data class DatedPrice(
     val amountPhp: Double,
     val recordedDate: String = "",
-    val source: String = "Sample Mock Data",
+    val source: String = "Sample Data",
     val isSample: Boolean = true,
-    val isEstimate: Boolean = true
+    val isEstimate: Boolean = true,
+    val evidenceNote: String = ""
 ) {
     fun labelTl(): String = if (isSample) "₱%.2f (Halimbawang presyo)".format(amountPhp) else "₱%.2f (Tantya · %s)".format(amountPhp, recordedDate)
     fun labelEn(): String = if (isSample) "₱%.2f (Sample price)".format(amountPhp) else "₱%.2f (Estimate · %s)".format(amountPhp, recordedDate)
+}
+
+/**
+ * Requirement 1: price_observations structure.
+ * (drug, brand, chain, unit price, observed_on, source, evidence note)
+ * Until real data exists, every price stays labeled "Sample price".
+ * Show observation date whenever a real price is displayed. Do not invent prices or dates.
+ */
+@Serializable
+data class PriceObservation(
+    val drug: String,
+    val brand: String? = null,
+    val chain: PharmacyChain,
+    val unitPrice: Double,
+    val observedOn: String, // YYYY-MM-DD
+    val source: String,     // e.g. "Physical survey", "DOH-DPRI", "Receipt"
+    val evidenceNote: String = "",
+    val isSample: Boolean = true
+) {
+    fun labelTl(): String = if (isSample) "₱%.2f (Halimbawang presyo)".format(unitPrice) else "₱%.2f (Tantya · %s)".format(unitPrice, observedOn)
+    fun labelEn(): String = if (isSample) "₱%.2f (Sample price)".format(unitPrice) else "₱%.2f (Estimate · %s)".format(unitPrice, observedOn)
 }
 
 @Serializable
@@ -99,10 +121,12 @@ data class PharmacyBranch(
     val id: String,
     val name: String,
     val chain: PharmacyChain,
-    val address: String,
+    val address: String = "Sample Location",
     val latitude: Double,
     val longitude: Double,
     val distanceKm: Double,
     val phoneNumber: String? = null,
-    val isOpenNow: Boolean = true
+    val openingHours: String? = null,
+    val stockClaim: String? = null,
+    val isSample: Boolean = true
 )

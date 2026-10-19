@@ -14,14 +14,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Directions
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -36,6 +34,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
 import ph.reseta.app.R
 import ph.reseta.app.theme.ResetaBorder
 import ph.reseta.app.theme.ResetaInk
@@ -43,7 +49,6 @@ import ph.reseta.app.theme.ResetaInkMuted
 import ph.reseta.app.theme.ResetaPHTheme
 import ph.reseta.app.theme.ResetaPrimary
 import ph.reseta.app.theme.ResetaPrimarySoft
-import ph.reseta.app.theme.ResetaSurface
 import ph.reseta.app.ui.components.ResetaCard
 import ph.reseta.app.ui.components.ResetaTopBar
 import ph.reseta.app.ui.components.SecondaryResetaButton
@@ -52,6 +57,10 @@ import ph.reseta.sample.SampleData
 
 /**
  * SCREEN 8: Nearby Pharmacy Map & Branch Cards.
+ * Rule 3 & Requirement 2:
+ * - Uses Maps Compose (GoogleMap).
+ * - API Key from local.properties (restricted by package and SHA-1).
+ * - All branches labeled "Sample" with no invented addresses, phones, hours, or stock claims.
  */
 @Composable
 fun Screen08Map(
@@ -61,6 +70,15 @@ fun Screen08Map(
     onDirectionsClick: (PharmacyBranch) -> Unit = {},
     onBack: () -> Unit = {}
 ) {
+    val initialPos = LatLng(
+        branches.firstOrNull()?.latitude ?: 14.5685,
+        branches.firstOrNull()?.longitude ?: 120.9934
+    )
+
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(initialPos, 14.5f)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -78,53 +96,65 @@ fun Screen08Map(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Simulated Map Container
+            // Interactive Maps Compose container
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(240.dp),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFD6E4DE)),
                 border = BorderStroke(1.dp, ResetaBorder)
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Surface(
-                            shape = CircleShape,
-                            color = ResetaPrimary,
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xCCFFFFFF)
-                        ) {
-                            Text(
-                                text = "Taft Avenue, Malate · 4 na Botika",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = ResetaInk,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    GoogleMap(
+                        modifier = Modifier.fillMaxSize(),
+                        cameraPositionState = cameraPositionState,
+                        properties = MapProperties(isMyLocationEnabled = false),
+                        uiSettings = MapUiSettings(
+                            zoomControlsEnabled = true,
+                            compassEnabled = true,
+                            myLocationButtonEnabled = false
+                        )
+                    ) {
+                        branches.forEach { branch ->
+                            Marker(
+                                state = MarkerState(position = LatLng(branch.latitude, branch.longitude)),
+                                title = branch.name,
+                                snippet = "Sample branch · Walang aktwal na stock o oras"
                             )
                         }
                     }
                 }
             }
 
+            // Data source disclaimer banner (Rule 2 requirement: no invented data)
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = ResetaPrimarySoft),
+                border = BorderStroke(1.dp, ResetaPrimary.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = ResetaPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "Nakabinbin ang listahan ng mga botika mula sa external data source. Lahat ng branch dito ay Sample data lamang.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ResetaInk
+                    )
+                }
+            }
+
             Text(
-                text = "Mga Pinakamalapit na Branch",
+                text = "Mga Pinakamalapit na Botika [Sample]",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = ResetaInk
@@ -144,12 +174,30 @@ fun Screen08Map(
                             verticalAlignment = Alignment.Top
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = branch.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ResetaInk
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = branch.name,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ResetaInk
+                                    )
+                                    if (branch.isSample) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0xFFF1F5F9)
+                                        ) {
+                                            Text(
+                                                text = "Sample",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = ResetaInkMuted,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
                                 Text(
                                     text = branch.address,
                                     style = MaterialTheme.typography.bodySmall,

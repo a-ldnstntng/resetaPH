@@ -212,6 +212,7 @@ async function startServer() {
   app.set("trust proxy", 1);
   // Support full quality scan images up to 20MB
   app.use(express.json({ limit: "25mb" }));
+  app.use(express.text({ type: ["text/csv", "text/plain"], limit: "5mb" }));
 
   app.get("/healthz", (_req: Request, res: Response) => {
     res.json({
@@ -498,6 +499,117 @@ async function startServer() {
       console.error(`[ResetaPH Scan] Error after ${Date.now() - startMs}ms (status ${statusCode})`);
       res.status(statusCode).json({ error: message });
     }
+  });
+
+  // ==========================================
+  // Price Observations Store (Stage 4 / Rule 2)
+  // Structure: (drug, brand, chain, unit price, observed_on, source, evidence note)
+  // ==========================================
+  interface ServerPriceObservation {
+    drug: string;
+    brand?: string;
+    chain: string;
+    unitPrice: number;
+    observedOn: string;
+    source: string;
+    evidenceNote: string;
+    isSample: boolean;
+  }
+
+  const observedPricesStore: ServerPriceObservation[] = [];
+
+  // GET /api/prices
+  app.get("/api/prices", (req: Request, res: Response) => {
+    const drugQuery = (req.query.drug as string)?.trim().toLowerCase();
+    const results = drugQuery
+      ? observedPricesStore.filter(
+          (o) =>
+            o.drug.toLowerCase() === drugQuery ||
+            (o.brand && o.brand.toLowerCase() === drugQuery)
+        )
+      : observedPricesStore;
+
+    res.json({
+      count: results.length,
+      isSample: results.length === 0 || results.every((o) => o.isSample),
+      observations: results,
+    });
+  });
+
+  // POST /api/prices/import-csv
+  app.post("/api/prices/import-csv", (req: Request, res: Response) => {
+    const csv = typeof req.body === "string" ? req.body : "";
+    if (!csv.trim()) {
+      return res.status(400).json({ error: "Empty CSV content" });
+    }
+
+    const lines = csv.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+    if (lines.length < 2) {
+      return res.status(400).json({ error: "CSV must contain header and at least one data row" });
+    }
+
+    const header = lines[0].toLowerCase().split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+    const drugIdx = header.indexOf("drug");
+    const brandIdx = header.indexOf("brand");
+    const chainIdx = header.indexOf("chain");
+    const priceIdx = header.indexOf("unit_price");
+    const dateIdx = header.indexOf("observed_on");
+    const sourceIdx = header.indexOf("source");
+    const evidenceIdx = header.indexOf("evidence_note");
+    const isSampleIdx = header.indexOf("is_sample");
+
+    if (drugIdx === -1 || chainIdx === -1 || priceIdx === -1 || dateIdx === -1) {
+      return res.status(400).json({
+        error: "Missing required CSV columns: drug, chain, unit_price, observed_on",
+      });
+    }
+
+    let importedCount = 0;
+    const warnings: string[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.startsWith("#")) continue;
+
+      const tokens = line.split(",").map((t) => t.trim().replace(/^"|"$/g, ""));
+      const drug = tokens[drugIdx];
+      const chain = tokens[chainIdx];
+      const unitPrice = parseFloat(tokens[priceIdx]);
+      const observedOn = tokens[dateIdx];
+      const brand = brandIdx !== -1 ? tokens[brandIdx] || undefined : undefined;
+      const source = sourceIdx !== -1 ? tokens[sourceIdx] || "CSV Import" : "CSV Import";
+      const evidenceNote = evidenceIdx !== -1 ? tokens[evidenceIdx] || "" : "";
+      const isSample = isSampleIdx !== -1 ? tokens[isSampleIdx]?.toLowerCase() === "true" : false;
+
+      if (!drug || !chain || isNaN(unitPrice) || unitPrice <= 0 || !observedOn) {
+        continue;
+      }
+
+      // Validate drug against drug catalog
+      const matched = lookupCatalogItem(drug) || (brand ? lookupCatalogItem(brand) : undefined);
+      if (!matched) {
+        warnings.push(`Row ${i}: "${drug}" is not in the recognized drug catalog.`);
+      }
+
+      observedPricesStore.push({
+        drug: matched ? matched.genericName : drug,
+        brand,
+        chain,
+        unitPrice,
+        observedOn,
+        source,
+        evidenceNote,
+        isSample,
+      });
+      importedCount++;
+    }
+
+    res.json({
+      success: true,
+      importedCount,
+      totalStored: observedPricesStore.length,
+      warnings,
+    });
   });
 
   if (process.env.NODE_ENV === "production") {

@@ -1,8 +1,18 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
 }
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    FileInputStream(localPropertiesFile).use { localProperties.load(it) }
+}
+val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY") ?: ""
 
 android {
     namespace = "ph.reseta.app"
@@ -13,6 +23,8 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
     }
 
     buildTypes {
@@ -104,4 +116,8 @@ dependencies {
 
   // Networking (OkHttp with timeouts and headers)
   implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+  // Google Maps Platform & Maps Compose (Rule 3)
+  implementation("com.google.maps.android:maps-compose:6.4.1")
+  implementation("com.google.android.gms:play-services-maps:19.0.0")
 }
