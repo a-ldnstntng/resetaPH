@@ -1,12 +1,16 @@
 package ph.reseta.validation
 
-import ph.reseta.catalog.PhilippineDrugCatalog
+import ph.reseta.catalog.SamplePhilippineDrugCatalog
 import ph.reseta.model.SafetySeverity
 import ph.reseta.model.SafetyWarning
 
 /**
- * Pure Kotlin Clinical Dosage and Safety Validator (Rule 1).
- * Enforces Philippine DOH DPRI and FDA safety thresholds.
+ * Pure Kotlin Prescription Arithmetic & Consistency Validator (Rule 1).
+ *
+ * NOTE: This validator strictly performs arithmetic consistency and completeness checks
+ * (e.g. quantity vs doses/day × days, missing strength/frequency).
+ * It NEVER performs clinical pharmacology assessments, daily mg limit approvals,
+ * or implies that any dose is safe.
  */
 data class SafetyValidationOutcome(
     val normalizedGeneric: String,
@@ -21,77 +25,102 @@ data class SafetyValidationOutcome(
 
 object MedicationSafetyValidator {
 
-    private fun parseStrengthMg(strength: String): Double? {
-        val regex = Regex("""(\d+(?:\.\d+)?)\s*mg""", RegexOption.IGNORE_CASE)
-        val match = regex.find(strength) ?: return null
-        return match.groupValues[1].toDoubleOrNull()
-    }
-
     fun validateItemSafety(
         rawGenericOrBrand: String,
         rawStrength: String,
         rawForm: String,
-        dosesPerDay: Int,
-        durationDays: Int?
+        quantity: Int = 0,
+        dosesPerDay: Int = 0,
+        durationDays: Int? = null
     ): SafetyValidationOutcome {
-        val entry = PhilippineDrugCatalog.findEntry(rawGenericOrBrand, rawStrength)
+        val entry = SamplePhilippineDrugCatalog.findEntry(rawGenericOrBrand, rawStrength)
         val warnings = mutableListOf<SafetyWarning>()
 
         val genericName = entry?.genericName ?: rawGenericOrBrand.trim().ifEmpty { "Hindi Natukoy" }
-        val strength = entry?.standardStrength ?: rawStrength.trim().ifEmpty { "500 mg" }
+        val strength = entry?.standardStrength ?: rawStrength.trim().ifEmpty { "" }
         val form = entry?.form ?: rawForm.trim().ifEmpty { "tablet" }
 
-        val singleDoseMg = parseStrengthMg(strength)
-        val safeDosesPerDay = dosesPerDay.coerceAtLeast(1)
+        // 1. Missing drug name check
+        if (rawGenericOrBrand.isBlank() || genericName == "Hindi Natukoy") {
+            warnings.add(
+                SafetyWarning(
+                    code = "MISSING_DRUG_NAME",
+                    severity = SafetySeverity.WARNING,
+                    messageTl = "Pakisigurado: Hindi malinaw o kulang ang pangalan ng gamot sa reseta. Kumonsulta sa doktor o botika.",
+                    messageEn = "Pakisigurado: Drug name is missing or illegible on the prescription. Please verify with doctor or pharmacist."
+                )
+            )
+        }
 
-        if (entry != null && singleDoseMg != null && entry.maxDailyDoseMg != null) {
-            val dailyDoseMg = singleDoseMg * safeDosesPerDay
-            if (dailyDoseMg > entry.maxDailyDoseMg) {
+        // 2. Missing dosage strength check
+        if (strength.isBlank()) {
+            warnings.add(
+                SafetyWarning(
+                    code = "MISSING_STRENGTH",
+                    severity = SafetySeverity.CAUTION,
+                    messageTl = "Pakisigurado: Walang nakasaad na dosage strength (hal. 500mg). Linawin sa parmasyutiko bago bumili.",
+                    messageEn = "Pakisigurado: Dosage strength (e.g. 500mg) is missing. Clarify with the pharmacist before purchasing."
+                )
+            )
+        }
+
+        // 3. Missing or zero frequency check
+        if (dosesPerDay <= 0) {
+            warnings.add(
+                SafetyWarning(
+                    code = "MISSING_FREQUENCY",
+                    severity = SafetySeverity.CAUTION,
+                    messageTl = "Pakisigurado: Hindi malinaw kung ilang beses iinumin sa isang araw. Kumpirmahin ang tamang agwat sa doktor.",
+                    messageEn = "Pakisigurado: Frequency of doses per day is missing or unclear. Confirm proper interval with your doctor."
+                )
+            )
+        }
+
+        // 4. Missing or zero quantity check
+        if (quantity <= 0) {
+            warnings.add(
+                SafetyWarning(
+                    code = "MISSING_QUANTITY",
+                    severity = SafetySeverity.CAUTION,
+                    messageTl = "Pakisigurado: Walang nakasaad na kabuuang bilang ng bibilhing gamot (# o quantity).",
+                    messageEn = "Pakisigurado: Total quantity to purchase (#) is not specified on the prescription."
+                )
+            )
+        }
+
+        // 5. Arithmetic consistency check (quantity vs dosesPerDay × durationDays)
+        if (durationDays != null && durationDays > 0 && dosesPerDay > 0 && quantity > 0) {
+            val expectedQuantity = dosesPerDay * durationDays
+            if (quantity < expectedQuantity) {
                 warnings.add(
                     SafetyWarning(
-                        code = "DOSAGE_CEILING_EXCEEDED",
-                        severity = SafetySeverity.WARNING,
-                        messageTl = "BABALA SA DOSAGE: Ang kabuuang %.0f mg bawat araw ay lumalagpas sa karaniwang ligtas na ceiling ng DOH (%.0f mg/araw). Kumpirmahin muna sa doktor."
-                            .format(dailyDoseMg, entry.maxDailyDoseMg),
-                        messageEn = "DOSAGE WARNING: The total %.0f mg per day exceeds the standard safe DOH limit (%.0f mg/day). Confirm with your prescribing doctor."
-                            .format(dailyDoseMg, entry.maxDailyDoseMg)
+                        code = "ARITHMETIC_QUANTITY_SHORTAGE",
+                        severity = SafetySeverity.CAUTION,
+                        messageTl = "Pakisigurado: Nakasaad ang $quantity piraso sa reseta, ngunit kailangan ng $expectedQuantity piraso para sa $durationDays araw ($dosesPerDay bawat araw).",
+                        messageEn = "Pakisigurado: Prescription indicates $quantity units, but $expectedQuantity units are required for $durationDays days ($dosesPerDay daily)."
+                    )
+                )
+            } else if (quantity > expectedQuantity) {
+                warnings.add(
+                    SafetyWarning(
+                        code = "ARITHMETIC_QUANTITY_EXCESS",
+                        severity = SafetySeverity.INFO,
+                        messageTl = "Pakisigurado: May $quantity piraso sa reseta, higit sa kailangang $expectedQuantity piraso para sa $durationDays araw ($dosesPerDay bawat araw).",
+                        messageEn = "Pakisigurado: Prescription lists $quantity units, which exceeds the calculated $expectedQuantity units for $durationDays days ($dosesPerDay daily)."
                     )
                 )
             }
         }
 
-        if (entry != null && entry.isAntibiotic) {
-            val days = durationDays ?: 7
-            if (days < 5) {
-                warnings.add(
-                    SafetyWarning(
-                        code = "ANTIBIOTIC_COURSE_TOO_SHORT",
-                        severity = SafetySeverity.CAUTION,
-                        messageTl = "PAALALA SA ANTIBIOTIC: Karaniwang 7 hanggang 14 na araw ang buong kurso. Huwag ihinto nang maaga upang maiwasan ang antibiotic resistance."
-                            .format(days),
-                        messageEn = "ANTIBIOTIC REMINDER: A complete course is usually 7 to 14 days. Do not stop early to prevent antimicrobial resistance."
-                    )
-                )
-            } else if (days > 14) {
-                warnings.add(
-                    SafetyWarning(
-                        code = "ANTIBIOTIC_COURSE_TOO_LONG",
-                        severity = SafetySeverity.CAUTION,
-                        messageTl = "PAALALA: Mahigit 14 na araw ang antibiotic na ito. Tiyaking may follow-up check-up sa doktor.",
-                        messageEn = "REMINDER: This antibiotic course exceeds 14 days. Ensure you have a scheduled follow-up with your doctor."
-                    )
-                )
-            }
-        }
-
+        // NO clinical dose ceiling checks, NO antibiotic duration enforcement, NO "safe" assertions.
         return SafetyValidationOutcome(
             normalizedGeneric = genericName,
-            canonicalStrength = strength,
+            canonicalStrength = strength.ifEmpty { "Standard" },
             canonicalForm = form,
             mealNoteTl = entry?.defaultMealNoteTl ?: "Inumin ayon sa bilin ng doktor.",
             mealNoteEn = entry?.defaultMealNoteEn ?: "Take as instructed by your doctor.",
-            patientNoteTl = entry?.defaultPatientNoteTl ?: "Sundin ang tamang oras at dami ng pag-inom.",
-            patientNoteEn = entry?.defaultPatientNoteEn ?: "Follow the prescribed timing and quantity.",
+            patientNoteTl = entry?.defaultPatientNoteTl ?: "Sundin ang nakasulat na tagubilin ng lisensyadong doktor.",
+            patientNoteEn = entry?.defaultPatientNoteEn ?: "Follow the written directions of your licensed physician.",
             warnings = warnings
         )
     }

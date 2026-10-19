@@ -66,7 +66,8 @@ fun MainNavigation() {
             .safeDrawingPadding()
     ) {
         // Active Screen Content
-        Box(modifier = Modifier.fillMaxSize().padding(bottom = 58.dp)) {
+        val bottomPadding = if (BuildConfig.DEBUG) 58.dp else 0.dp
+        Box(modifier = Modifier.fillMaxSize().padding(bottom = bottomPadding)) {
             when (currentScreen) {
                 AppMockupScreen.WELCOME -> Screen01Welcome(
                     onContinue = { currentScreen = AppMockupScreen.HOME }
@@ -125,36 +126,38 @@ fun MainNavigation() {
             }
         }
 
-        // Floating Screen Switcher Drawer Bar for Stage 1 Verification on real devices
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth(),
-            color = Color(0xF2142921),
-            shadowElevation = 8.dp
-        ) {
-            Row(
+        // Floating Screen Switcher Drawer Bar: Debug-only for verification on real devices
+        if (BuildConfig.DEBUG) {
+            Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(),
+                color = Color(0xF2142921),
+                shadowElevation = 8.dp
             ) {
-                AppMockupScreen.entries.forEach { screen ->
-                    val isSelected = currentScreen == screen
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) ResetaPrimary else Color(0x33FFFFFF),
-                        modifier = Modifier.clickable { currentScreen = screen }
-                    ) {
-                        Text(
-                            text = screen.title,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                        )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AppMockupScreen.entries.forEach { screen ->
+                        val isSelected = currentScreen == screen
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) ResetaPrimary else Color(0x33FFFFFF),
+                            modifier = Modifier.clickable { currentScreen = screen }
+                        ) {
+                            Text(
+                                text = screen.title,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
                     }
                 }
             }

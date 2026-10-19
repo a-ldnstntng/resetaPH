@@ -4,7 +4,6 @@ import ph.reseta.model.PharmacyBranch
 import ph.reseta.model.PharmacyChain
 import ph.reseta.model.PrescriptionItem
 import ph.reseta.model.PrescriptionScan
-import ph.reseta.validation.MedicationSafetyValidator
 
 /**
  * Rich clinical sample data for ResetaPH (Rule 1 & Rule 2).

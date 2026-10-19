@@ -231,7 +231,8 @@ fun DosageSlotBadge(slotName: String) {
 
 @Composable
 fun PriceEstimateBadge(
-    dateText: String,
+    dateText: String = "",
+    label: String = "Sample price",
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -240,7 +241,7 @@ fun PriceEstimateBadge(
         modifier = modifier
     ) {
         Text(
-            text = "Tantya · $dateText",
+            text = label,
             style = MaterialTheme.typography.labelSmall,
             color = ResetaPrimary,
             fontWeight = FontWeight.SemiBold,

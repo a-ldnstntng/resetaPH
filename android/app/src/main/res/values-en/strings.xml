@@ -39,8 +39,8 @@
     <string name="savings_hero_subtitle">Based on choosing quality Generics over Branded equivalents.</string>
     <string name="generic_price_label">Generic (Estimate)</string>
     <string name="branded_price_label">Branded Equivalent</string>
-    <string name="price_estimate_badge">Est · %1$s</string>
-    <string name="dated_price_disclaimer">Prices are estimates based on DOH DPRI and retail price surveys as of %1$s.</string>
+    <string name="price_estimate_badge">Sample price</string>
+    <string name="dated_price_disclaimer">Prices shown are sample prices for preview purposes only.</string>
     <string name="lowest_price_badge">Lowest Price</string>
 
     <!-- Schedule Screen -->

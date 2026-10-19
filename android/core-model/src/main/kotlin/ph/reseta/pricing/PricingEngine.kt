@@ -1,13 +1,14 @@
 package ph.reseta.pricing
 
-import ph.reseta.catalog.PhilippineDrugCatalog
+import ph.reseta.catalog.SamplePhilippineDrugCatalog
 import ph.reseta.model.DatedPrice
 import ph.reseta.model.PharmacyChain
 import ph.reseta.model.PrescriptionItem
 
 /**
  * Pure Kotlin Pricing Engine (Rule 1 & Rule 2).
- * Formulates prescription cost estimates and branded vs generic savings exclusively from dated records.
+ * Formulates prescription cost estimates and branded vs generic savings.
+ * In this sample mode, all prices are marked as synthetic sample estimates.
  */
 data class ItemPriceEstimate(
     val genericName: String,
@@ -18,14 +19,16 @@ data class ItemPriceEstimate(
     val totalGenericPrice: Double,
     val totalBrandedPrice: Double,
     val savingsAmount: Double,
-    val savingsPercent: Int
+    val savingsPercent: Int,
+    val isSample: Boolean = true
 )
 
 data class PharmacyBasketTotal(
     val chain: PharmacyChain,
     val totalCostPhp: Double,
     val isLowestPrice: Boolean = false,
-    val datedPriceReference: String
+    val datedPriceReference: String = "Sample Data",
+    val isSample: Boolean = true
 )
 
 data class BasketSavingsSummary(
@@ -34,7 +37,8 @@ data class BasketSavingsSummary(
     val totalSavingsPhp: Double,
     val averageSavingsPercent: Int,
     val basketPerChain: List<PharmacyBasketTotal>,
-    val priceDateReference: String = PhilippineDrugCatalog.CURRENT_SURVEY_DATE
+    val priceDateReference: String = "Sample Data",
+    val isSample: Boolean = true
 )
 
 object PricingEngine {
@@ -43,8 +47,8 @@ object PricingEngine {
         item: PrescriptionItem,
         preferredChain: PharmacyChain = PharmacyChain.TGP
     ): ItemPriceEstimate? {
-        val entry = PhilippineDrugCatalog.findEntry(item.genericName, item.strength)
-            ?: PhilippineDrugCatalog.findEntry(item.writtenAs, item.strength)
+        val entry = SamplePhilippineDrugCatalog.findEntry(item.genericName, item.strength)
+            ?: SamplePhilippineDrugCatalog.findEntry(item.writtenAs, item.strength)
             ?: return null
 
         val genericPrice = entry.genericDatedPrices[preferredChain]
@@ -69,7 +73,8 @@ object PricingEngine {
             totalGenericPrice = totalGeneric,
             totalBrandedPrice = totalBranded,
             savingsAmount = savings,
-            savingsPercent = percent
+            savingsPercent = percent,
+            isSample = true
         )
     }
 
@@ -97,8 +102,8 @@ object PricingEngine {
         val basketPerChain = chains.map { chain ->
             var chainSum = 0.0
             for (item in items) {
-                val entry = PhilippineDrugCatalog.findEntry(item.genericName, item.strength)
-                    ?: PhilippineDrugCatalog.findEntry(item.writtenAs, item.strength)
+                val entry = SamplePhilippineDrugCatalog.findEntry(item.genericName, item.strength)
+                    ?: SamplePhilippineDrugCatalog.findEntry(item.writtenAs, item.strength)
                 val unitPrice = entry?.genericDatedPrices?.get(chain)?.amountPhp
                     ?: entry?.genericDatedPrices?.values?.firstOrNull()?.amountPhp
                     ?: 5.0
@@ -107,7 +112,8 @@ object PricingEngine {
             PharmacyBasketTotal(
                 chain = chain,
                 totalCostPhp = chainSum,
-                datedPriceReference = PhilippineDrugCatalog.CURRENT_SURVEY_DATE
+                datedPriceReference = "Sample Data",
+                isSample = true
             )
         }
 
@@ -121,7 +127,9 @@ object PricingEngine {
             totalBrandedEstimatedPhp = totalBranded,
             totalSavingsPhp = totalSavings,
             averageSavingsPercent = savingsPercent,
-            basketPerChain = finalizedBasket
+            basketPerChain = finalizedBasket,
+            priceDateReference = "Sample Data",
+            isSample = true
         )
     }
 }

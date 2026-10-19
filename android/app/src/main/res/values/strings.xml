@@ -39,8 +39,8 @@
     <string name="savings_hero_subtitle">Base sa pagpili ng de-kalidad na Generic kaysa Branded.</string>
     <string name="generic_price_label">Generic (Tantya)</string>
     <string name="branded_price_label">Branded Katumbas</string>
-    <string name="price_estimate_badge">Tantya · %1$s</string>
-    <string name="dated_price_disclaimer">Ang mga presyo ay tinatayang base sa DOH DPRI at retail price survey noong %1$s.</string>
+    <string name="price_estimate_badge">Sample price</string>
+    <string name="dated_price_disclaimer">Ang mga presyo ay halimbawa lamang (sample price) para sa preview.</string>
     <string name="lowest_price_badge">Pinakamura</string>
 
     <!-- Schedule Screen -->

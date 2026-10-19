@@ -37,12 +37,13 @@ data class SafetyWarning(
 @Serializable
 data class DatedPrice(
     val amountPhp: Double,
-    val recordedDate: String, // ISO date, e.g. "2026-10-15"
-    val source: String,       // e.g. "DOH DPRI 2026", "TGP Price Survey", "Mercury Drug"
+    val recordedDate: String = "",
+    val source: String = "Sample Mock Data",
+    val isSample: Boolean = true,
     val isEstimate: Boolean = true
 ) {
-    fun labelTl(): String = "₱%.2f (Tantya · %s)".format(amountPhp, recordedDate)
-    fun labelEn(): String = "₱%.2f (Estimate · %s)".format(amountPhp, recordedDate)
+    fun labelTl(): String = if (isSample) "₱%.2f (Halimbawang presyo)".format(amountPhp) else "₱%.2f (Tantya · %s)".format(amountPhp, recordedDate)
+    fun labelEn(): String = if (isSample) "₱%.2f (Sample price)".format(amountPhp) else "₱%.2f (Estimate · %s)".format(amountPhp, recordedDate)
 }
 
 @Serializable
@@ -51,9 +52,8 @@ data class DrugCatalogEntry(
     val brandNames: List<String>,
     val form: String,
     val standardStrength: String,
-    val maxDailyDoseMg: Double? = null,
-    val maxDaysDuration: Int? = null,
-    val isAntibiotic: Boolean = false,
+    val isSample: Boolean = true,
+    val source: String = "Sample Mock Data (Unsurveyed)",
     val genericDatedPrices: Map<PharmacyChain, DatedPrice>,
     val brandedDatedPrices: Map<PharmacyChain, DatedPrice>,
     val defaultMealNoteTl: String,

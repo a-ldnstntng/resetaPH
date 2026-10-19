@@ -221,6 +221,10 @@ fun Screen04Review(
                                 )
                             }
                         }
+
+                        item.safetyWarnings.forEach { warning ->
+                            ph.reseta.app.ui.components.SafetyWarningBanner(warning)
+                        }
                     }
                 }
             }

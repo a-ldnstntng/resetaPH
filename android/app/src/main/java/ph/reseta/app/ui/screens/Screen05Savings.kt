@@ -135,7 +135,7 @@ fun Screen05Savings(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = stringResource(R.string.dated_price_disclaimer, basketSavings.priceDateReference),
+                    text = stringResource(R.string.dated_price_disclaimer),
                     style = MaterialTheme.typography.bodySmall,
                     color = ResetaInkMuted,
                     modifier = Modifier.padding(12.dp)
@@ -231,7 +231,7 @@ fun Screen05Savings(
                                     fontWeight = FontWeight.Bold,
                                     color = ResetaInk
                                 )
-                                PriceEstimateBadge(estimate.genericUnitPrice.recordedDate)
+                                PriceEstimateBadge(label = stringResource(R.string.price_estimate_badge))
                             }
 
                             Row(

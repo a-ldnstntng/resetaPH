@@ -98,7 +98,7 @@ fun Screen11PriceExplanation(
                 }
             }
 
-            // DOH DPRI Methodology
+            // Sample Price Methodology
             ResetaCard {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -108,14 +108,14 @@ fun Screen11PriceExplanation(
                         color = ResetaInk
                     )
                     Text(
-                        text = "Ang mga presyo sa ResetaPH ay nanggagaling sa pinakabagong DOH Drug Price Reference Index (DPRI) at mga verified price survey sa mga nangungunang botika (The Generics Pharmacy, Mercury Drug, at Watsons) noong Oktubre 2026.",
+                        text = "Sample price lamang ang kasalukuyang ipinapakita para sa demo at layout preview. Walang aktwal na retail field survey na isinagawa para sa mga halagang ito. Sa Stage 4, ikokonekta ang app sa verified backend pricing records.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = ResetaInkMuted
                     )
                 }
             }
 
-            // Clinical Safety Verification
+            // Arithmetic Consistency (Pakisigurado)
             ResetaCard {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
@@ -128,14 +128,14 @@ fun Screen11PriceExplanation(
                             tint = ResetaPrimary
                         )
                         Text(
-                            text = "Dosage Safety Monitoring",
+                            text = "Pagsusuri ng Reseta (Pakisigurado)",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = ResetaInk
                         )
                     }
                     Text(
-                        text = "Bawat reseta ay awtomatikong sinusuri ng aming clinical engine laban sa maximum daily dosage ceilings (hal. Paracetamol 4,000 mg limit) at tamang haba ng antibiotic regimen upang mapanatiling ligtas ang kalusugan mo.",
+                        text = "Sinusuri lamang ng ResetaPH ang linaw at pagkakatugma ng reseta (tulad ng kabuuang piraso laban sa dalas at bilang ng araw, at mga nawawalang detalye). Hindi ito clinical diagnosis at HINDI nagpapahayag na ligtas ang dosis. Palaging magtanong sa lisensyadong doktor o parmasyutiko.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = ResetaInkMuted
                     )
