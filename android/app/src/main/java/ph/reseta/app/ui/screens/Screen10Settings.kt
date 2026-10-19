@@ -52,16 +52,20 @@ import ph.reseta.app.ui.components.ResetaCard
 import ph.reseta.app.ui.components.ResetaTopBar
 import ph.reseta.app.ui.components.SecondaryResetaButton
 
+import ph.reseta.app.data.preferences.AppLanguage
+
 /**
- * SCREEN 10: Accessibility & Language Settings (Rule 5 & Rule 7).
+ * SCREEN 10: Accessibility & Language Settings (Rule 5, Rule 6 & Rule 7).
  */
 @Composable
 fun Screen10Settings(
+    selectedLanguage: AppLanguage = AppLanguage.TAGLISH,
+    onLanguageChange: (AppLanguage) -> Unit = {},
+    installId: String = "",
+    totalScansCount: Int = 0,
     onDeleteAllData: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
-    var isTaglish by remember { mutableStateOf(true) }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -93,7 +97,7 @@ fun Screen10Settings(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { isTaglish = true },
+                                .clickable { onLanguageChange(AppLanguage.TAGLISH) },
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -111,8 +115,8 @@ fun Screen10Settings(
                                 )
                             }
                             RadioButton(
-                                selected = isTaglish,
-                                onClick = { isTaglish = true },
+                                selected = selectedLanguage == AppLanguage.TAGLISH,
+                                onClick = { onLanguageChange(AppLanguage.TAGLISH) },
                                 colors = RadioButtonDefaults.colors(selectedColor = ResetaPrimary)
                             )
                         }
@@ -120,7 +124,7 @@ fun Screen10Settings(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { isTaglish = false },
+                                .clickable { onLanguageChange(AppLanguage.ENGLISH) },
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -138,8 +142,8 @@ fun Screen10Settings(
                                 )
                             }
                             RadioButton(
-                                selected = !isTaglish,
-                                onClick = { isTaglish = false },
+                                selected = selectedLanguage == AppLanguage.ENGLISH,
+                                onClick = { onLanguageChange(AppLanguage.ENGLISH) },
                                 colors = RadioButtonDefaults.colors(selectedColor = ResetaPrimary)
                             )
                         }
@@ -175,9 +179,16 @@ fun Screen10Settings(
                             )
                         }
 
+                        if (installId.isNotBlank()) {
+                            Text(
+                                text = "Device Install ID (Rate-limit token): ${installId.take(13)}...",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ResetaInkMuted
+                            )
+                        }
                         Text(
-                            text = "Naka-off ang automatic cloud backup. Hindi kailanman sine-save o nila-log ang mga orihinal na litrato ng reseta. Ang mga resulta lamang ang lokal na naka-save sa iyong phone (Room database).",
-                            style = MaterialTheme.typography.bodySmall,
+                            text = "Naka-save sa Room database: $totalScansCount reseta",
+                            style = MaterialTheme.typography.labelSmall,
                             color = ResetaInkMuted
                         )
                     }
@@ -186,7 +197,7 @@ fun Screen10Settings(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 SecondaryResetaButton(
-                    text = "Burahin ang Lahat ng Scan Data",
+                    text = "Burahin ang Lahat ng Scan Data ($totalScansCount)",
                     onClick = onDeleteAllData,
                     icon = Icons.Default.DeleteForever
                 )

@@ -1,11 +1,9 @@
 package ph.reseta.app
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,10 +22,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import ph.reseta.app.theme.ResetaInk
+import androidx.lifecycle.viewmodel.compose.viewModel
 import ph.reseta.app.theme.ResetaPrimary
 import ph.reseta.app.ui.screens.Screen01Welcome
 import ph.reseta.app.ui.screens.Screen02Home
@@ -40,6 +40,16 @@ import ph.reseta.app.ui.screens.Screen09History
 import ph.reseta.app.ui.screens.Screen10Settings
 import ph.reseta.app.ui.screens.Screen11PriceExplanation
 import ph.reseta.app.ui.screens.Screen12StoreDetail
+import ph.reseta.app.ui.viewmodels.HistoryViewModel
+import ph.reseta.app.ui.viewmodels.HomeViewModel
+import ph.reseta.app.ui.viewmodels.MapViewModel
+import ph.reseta.app.ui.viewmodels.ResetaViewModelFactory
+import ph.reseta.app.ui.viewmodels.ReviewViewModel
+import ph.reseta.app.ui.viewmodels.SavingsViewModel
+import ph.reseta.app.ui.viewmodels.ScheduleViewModel
+import ph.reseta.app.ui.viewmodels.SettingsViewModel
+import ph.reseta.model.PrescriptionScan
+import ph.reseta.sample.SampleData
 
 enum class AppMockupScreen(val screenNumber: Int, val title: String) {
     WELCOME(1, "1. Welcome"),
@@ -58,68 +68,143 @@ enum class AppMockupScreen(val screenNumber: Int, val title: String) {
 
 @Composable
 fun MainNavigation() {
+    val context = LocalContext.current
+    val app = context.applicationContext as ResetaApplication
+    val factory = remember { ResetaViewModelFactory(app.container) }
+
+    val homeViewModel: HomeViewModel = viewModel(factory = factory)
+    val reviewViewModel: ReviewViewModel = viewModel(factory = factory)
+    val savingsViewModel: SavingsViewModel = viewModel(factory = factory)
+    val scheduleViewModel: ScheduleViewModel = viewModel(factory = factory)
+    val historyViewModel: HistoryViewModel = viewModel(factory = factory)
+    val settingsViewModel: SettingsViewModel = viewModel(factory = factory)
+    val mapViewModel: MapViewModel = viewModel(factory = factory)
+
+    val homeUiState by homeViewModel.uiState.collectAsState()
+    val reviewUiState by reviewViewModel.uiState.collectAsState()
+    val savingsUiState by savingsViewModel.uiState.collectAsState()
+    val scheduleUiState by scheduleViewModel.uiState.collectAsState()
+    val historyUiState by historyViewModel.uiState.collectAsState()
+    val settingsUiState by settingsViewModel.uiState.collectAsState()
+    val mapUiState by mapViewModel.uiState.collectAsState()
+
     var currentScreen by remember { mutableStateOf(AppMockupScreen.HOME) }
+    var activeScanId by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .safeDrawingPadding()
     ) {
-        // Active Screen Content
         val bottomPadding = if (BuildConfig.DEBUG) 58.dp else 0.dp
         Box(modifier = Modifier.fillMaxSize().padding(bottom = bottomPadding)) {
             when (currentScreen) {
                 AppMockupScreen.WELCOME -> Screen01Welcome(
-                    onContinue = { currentScreen = AppMockupScreen.HOME }
+                    onContinue = {
+                        homeViewModel.completeOnboarding()
+                        currentScreen = AppMockupScreen.HOME
+                    }
                 )
                 AppMockupScreen.HOME -> Screen02Home(
+                    recentScans = homeUiState.recentScans,
                     onScanClick = { currentScreen = AppMockupScreen.SCANNING },
-                    onUploadClick = { currentScreen = AppMockupScreen.REVIEW },
-                    onSampleClick = { currentScreen = AppMockupScreen.REVIEW },
-                    onHistoryItemClick = { currentScreen = AppMockupScreen.SAVINGS },
+                    onUploadClick = { currentScreen = AppMockupScreen.SCANNING },
+                    onSampleClick = { sampleType ->
+                        val sample = if (sampleType == "triple") {
+                            SampleData.sampleScanResult.copy(
+                                id = "scan-triple-${System.currentTimeMillis()}",
+                                items = listOf(SampleData.sampleItem3, SampleData.sampleItem2)
+                            )
+                        } else {
+                            SampleData.sampleScanResult.copy(
+                                id = "scan-aug-${System.currentTimeMillis()}",
+                                items = listOf(SampleData.sampleItem1, SampleData.sampleItem2)
+                            )
+                        }
+                        homeViewModel.loadSampleScan(sample) { savedId ->
+                            activeScanId = savedId
+                            reviewViewModel.setInitialScan(sample)
+                            currentScreen = AppMockupScreen.REVIEW
+                        }
+                    },
+                    onHistoryItemClick = { scan ->
+                        activeScanId = scan.id
+                        reviewViewModel.setInitialScan(scan)
+                        savingsViewModel.loadScanPricing(scan.id)
+                        currentScreen = AppMockupScreen.SAVINGS
+                    },
                     onSettingsClick = { currentScreen = AppMockupScreen.SETTINGS }
                 )
                 AppMockupScreen.SCANNING -> Screen03Scanning(
                     onCancel = { currentScreen = AppMockupScreen.HOME }
                 )
                 AppMockupScreen.REVIEW -> Screen04Review(
-                    onConfirm = { currentScreen = AppMockupScreen.SAVINGS },
+                    scanResult = reviewUiState.scan ?: SampleData.sampleScanResult,
+                    onConfirm = {
+                        reviewViewModel.saveAndConfirm { savedId ->
+                            activeScanId = savedId
+                            savingsViewModel.loadScanPricing(savedId)
+                            currentScreen = AppMockupScreen.SAVINGS
+                        }
+                    },
                     onDeepScan = { /* Handled in Stage 3 */ },
                     onBack = { currentScreen = AppMockupScreen.HOME }
                 )
                 AppMockupScreen.SAVINGS -> Screen05Savings(
-                    onViewScheduleClick = { currentScreen = AppMockupScreen.SCHEDULE },
+                    scanResult = savingsUiState.scan ?: (reviewUiState.scan ?: SampleData.sampleScanResult),
+                    onViewScheduleClick = {
+                        val currentScan = savingsUiState.scan ?: reviewUiState.scan ?: SampleData.sampleScanResult
+                        scheduleViewModel.loadSchedule(currentScan.id)
+                        currentScreen = AppMockupScreen.SCHEDULE
+                    },
                     onBack = { currentScreen = AppMockupScreen.REVIEW }
                 )
                 AppMockupScreen.SCHEDULE -> Screen06Schedule(
-                    onListenClick = { /* Handled in Stage 4 */ },
+                    scanResult = scheduleUiState.scan ?: SampleData.sampleScanResult,
+                    onListenClick = { /* Text-to-speech runtime check in Stage 4 */ },
                     onCounterModeClick = { currentScreen = AppMockupScreen.COUNTER_CARD },
                     onBack = { currentScreen = AppMockupScreen.SAVINGS }
                 )
                 AppMockupScreen.COUNTER_CARD -> Screen07CounterCard(
+                    scanResult = scheduleUiState.scan ?: SampleData.sampleScanResult,
                     onClose = { currentScreen = AppMockupScreen.SCHEDULE }
                 )
                 AppMockupScreen.MAP -> Screen08Map(
-                    onBranchClick = { currentScreen = AppMockupScreen.STORE_DETAIL },
-                    onDirectionsClick = { /* Maps intent in Stage 4 */ },
-                    onCopyInquiry = { /* Copy to clipboard */ },
+                    branches = mapUiState.branches,
+                    onBranchClick = { branch ->
+                        mapViewModel.selectBranch(branch)
+                        currentScreen = AppMockupScreen.STORE_DETAIL
+                    },
+                    onDirectionsClick = { /* Directions in Stage 4 */ },
+                    onCopyInquiry = { /* Inquiry copy to clipboard */ },
                     onBack = { currentScreen = AppMockupScreen.HOME }
                 )
                 AppMockupScreen.HISTORY -> Screen09History(
-                    onScanClick = { currentScreen = AppMockupScreen.SAVINGS },
-                    onClearHistory = { /* Clear in Stage 2 */ },
+                    scans = historyUiState.scans,
+                    onScanClick = { scan ->
+                        activeScanId = scan.id
+                        reviewViewModel.setInitialScan(scan)
+                        savingsViewModel.loadScanPricing(scan.id)
+                        currentScreen = AppMockupScreen.SAVINGS
+                    },
+                    onClearHistory = { historyViewModel.clearAllHistory() },
                     onBack = { currentScreen = AppMockupScreen.HOME }
                 )
                 AppMockupScreen.SETTINGS -> Screen10Settings(
-                    onDeleteAllData = { /* Handled in Stage 2 */ },
+                    selectedLanguage = settingsUiState.language,
+                    onLanguageChange = { newLang -> settingsViewModel.setLanguage(newLang) },
+                    installId = settingsUiState.installId,
+                    totalScansCount = settingsUiState.totalScansCount,
+                    onDeleteAllData = { settingsViewModel.deleteAllData() },
                     onBack = { currentScreen = AppMockupScreen.HOME }
                 )
                 AppMockupScreen.PRICE_EXPLANATION -> Screen11PriceExplanation(
                     onBack = { currentScreen = AppMockupScreen.SAVINGS }
                 )
                 AppMockupScreen.STORE_DETAIL -> Screen12StoreDetail(
-                    onCallClick = { /* Phone call intent */ },
-                    onDirectionsClick = { /* Directions */ },
+                    branch = mapUiState.selectedBranch ?: SampleData.sampleBranches.first(),
+                    onCallClick = { /* Phone intent */ },
+                    onDirectionsClick = { /* Directions intent */ },
                     onCopyInquiryClick = { /* Clipboard */ },
                     onBack = { currentScreen = AppMockupScreen.MAP }
                 )

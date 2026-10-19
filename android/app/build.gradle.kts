@@ -55,6 +55,7 @@ dependencies {
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.activity.compose)
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
   // Arch Components
   implementation(libs.androidx.lifecycle.runtime.compose)
@@ -85,4 +86,12 @@ dependencies {
   implementation(libs.androidx.navigation3.ui)
   implementation(libs.androidx.navigation3.runtime)
   implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+
+  // Jetpack DataStore Preferences
+  implementation("androidx.datastore:datastore-preferences:1.1.3")
+
+  // Jetpack Room Database
+  implementation("androidx.room:room-runtime:2.6.1")
+  implementation("androidx.room:room-ktx:2.6.1")
+  annotationProcessor("androidx.room:room-compiler:2.6.1")
 }

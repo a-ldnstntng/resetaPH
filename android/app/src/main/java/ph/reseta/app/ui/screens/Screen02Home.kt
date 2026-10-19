@@ -55,6 +55,7 @@ import ph.reseta.sample.SampleData
  */
 @Composable
 fun Screen02Home(
+    recentScans: List<PrescriptionScan> = emptyList(),
     onScanClick: () -> Unit = {},
     onUploadClick: () -> Unit = {},
     onSampleClick: (String) -> Unit = {},
@@ -177,39 +178,65 @@ fun Screen02Home(
                     fontWeight = FontWeight.Bold
                 )
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onHistoryItemClick(SampleData.sampleScanResult) },
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = ResetaSurface),
-                    border = BorderStroke(1.dp, ResetaBorder)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                if (recentScans.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = ResetaSurface),
+                        border = BorderStroke(1.dp, ResetaBorder)
                     ) {
-                        Column {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
-                                text = "Co-Amoxiclav, Amlodipine, Metformin",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = ResetaInk
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Dr. Maria Santos, MD · 3 gamot · 10/18/2026",
-                                style = MaterialTheme.typography.bodySmall,
+                                text = stringResource(R.string.history_empty),
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = ResetaInkMuted
                             )
                         }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = ResetaInkMuted,
-                            modifier = Modifier.size(18.dp)
-                        )
+                    }
+                } else {
+                    recentScans.take(3).forEach { scan ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onHistoryItemClick(scan) },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = ResetaSurface),
+                            border = BorderStroke(1.dp, ResetaBorder)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    val medNames = scan.items.joinToString(", ") { it.genericName.ifBlank { it.writtenAs } }
+                                    Text(
+                                        text = medNames.ifEmpty { "Prescription #${scan.id.take(8)}" },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ResetaInk,
+                                        maxLines = 1
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "${scan.doctorName ?: "Doctor"} · ${scan.items.size} gamot · ${scan.dateOnSlip ?: "Kamakailan"}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = ResetaInkMuted
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = ResetaInkMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
