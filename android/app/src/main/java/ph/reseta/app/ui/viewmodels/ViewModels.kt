@@ -10,11 +10,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import android.content.ContentResolver
+import android.net.Uri
+import ph.reseta.app.data.api.ResetaApiClient
 import ph.reseta.app.data.preferences.AppLanguage
 import ph.reseta.app.data.preferences.UserPreferencesRepository
 import ph.reseta.app.data.repository.PharmacyRepository
 import ph.reseta.app.data.repository.PrescriptionRepository
 import ph.reseta.app.data.repository.PricingRepository
+import ph.reseta.app.data.scanner.ImageProcessingUtils
 import ph.reseta.app.di.AppContainer
 import ph.reseta.model.PharmacyBranch
 import ph.reseta.model.PrescriptionItem
@@ -329,6 +333,63 @@ class MapViewModel(
 }
 
 // ==========================================
+// 8. SCAN VIEWMODEL
+// ==========================================
+sealed interface ScanState {
+    object Idle : ScanState
+    data class Processing(val statusMessage: String = "Binabasa ang reseta gamit ang AI...") : ScanState
+    data class Success(val scan: PrescriptionScan) : ScanState
+    data class Error(val message: String) : ScanState
+}
+
+class ScanViewModel(
+    private val apiClient: ResetaApiClient,
+    private val prescriptionRepository: PrescriptionRepository,
+    private val preferencesRepository: UserPreferencesRepository
+) : ViewModel() {
+
+    private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
+    val scanState: StateFlow<ScanState> = _scanState.asStateFlow()
+
+    fun resetState() {
+        _scanState.value = ScanState.Idle
+    }
+
+    fun scanImageUri(contentResolver: ContentResolver, uri: Uri, deepScan: Boolean = false) {
+        viewModelScope.launch {
+            _scanState.value = ScanState.Processing("Inihahanda ang malinaw na litrato...")
+            try {
+                // Rule 1: Send at full quality without downscaling below 1600px on long side
+                val imageBytes = ImageProcessingUtils.processImageUriToBytes(contentResolver, uri)
+
+                _scanState.value = ScanState.Processing("Sinusuri ang mga sulat-kamay at gamot gamit ang AI...")
+                val installId = preferencesRepository.getOrCreateInstallId()
+
+                val result = apiClient.scanPrescription(
+                    imageBytes = imageBytes,
+                    mimeType = "image/jpeg",
+                    deepScan = deepScan,
+                    installId = installId
+                )
+
+                result.fold(
+                    onSuccess = { scan ->
+                        // Rule 5: Store only structured results in Room
+                        prescriptionRepository.saveScan(scan)
+                        _scanState.value = ScanState.Success(scan)
+                    },
+                    onFailure = { error ->
+                        _scanState.value = ScanState.Error(error.message ?: "Failed to process prescription")
+                    }
+                )
+            } catch (e: Exception) {
+                _scanState.value = ScanState.Error(e.message ?: "Hindi mabuksan ang litrato ng reseta.")
+            }
+        }
+    }
+}
+
+// ==========================================
 // VIEWMODEL FACTORY PROVIDER
 // ==========================================
 class ResetaViewModelFactory(
@@ -367,6 +428,13 @@ class ResetaViewModelFactory(
             }
             modelClass.isAssignableFrom(MapViewModel::class.java) -> {
                 MapViewModel(container.pharmacyRepository) as T
+            }
+            modelClass.isAssignableFrom(ScanViewModel::class.java) -> {
+                ScanViewModel(
+                    container.apiClient,
+                    container.prescriptionRepository,
+                    container.userPreferencesRepository
+                ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

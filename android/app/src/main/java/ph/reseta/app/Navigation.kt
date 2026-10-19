@@ -1,5 +1,10 @@
 package ph.reseta.app
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import ph.reseta.app.theme.ResetaPrimary
 import ph.reseta.app.ui.screens.Screen01Welcome
 import ph.reseta.app.ui.screens.Screen02Home
@@ -40,12 +49,15 @@ import ph.reseta.app.ui.screens.Screen09History
 import ph.reseta.app.ui.screens.Screen10Settings
 import ph.reseta.app.ui.screens.Screen11PriceExplanation
 import ph.reseta.app.ui.screens.Screen12StoreDetail
+import ph.reseta.app.ui.screens.ScreenError
 import ph.reseta.app.ui.viewmodels.HistoryViewModel
 import ph.reseta.app.ui.viewmodels.HomeViewModel
 import ph.reseta.app.ui.viewmodels.MapViewModel
 import ph.reseta.app.ui.viewmodels.ResetaViewModelFactory
 import ph.reseta.app.ui.viewmodels.ReviewViewModel
 import ph.reseta.app.ui.viewmodels.SavingsViewModel
+import ph.reseta.app.ui.viewmodels.ScanState
+import ph.reseta.app.ui.viewmodels.ScanViewModel
 import ph.reseta.app.ui.viewmodels.ScheduleViewModel
 import ph.reseta.app.ui.viewmodels.SettingsViewModel
 import ph.reseta.model.PrescriptionScan
@@ -63,7 +75,8 @@ enum class AppMockupScreen(val screenNumber: Int, val title: String) {
     HISTORY(9, "9. History"),
     SETTINGS(10, "10. Settings"),
     PRICE_EXPLANATION(11, "11. Paliwanag"),
-    STORE_DETAIL(12, "12. Store Details")
+    STORE_DETAIL(12, "12. Store Details"),
+    ERROR(13, "13. Error Screen")
 }
 
 @Composable
@@ -79,6 +92,7 @@ fun MainNavigation() {
     val historyViewModel: HistoryViewModel = viewModel(factory = factory)
     val settingsViewModel: SettingsViewModel = viewModel(factory = factory)
     val mapViewModel: MapViewModel = viewModel(factory = factory)
+    val scanViewModel: ScanViewModel = viewModel(factory = factory)
 
     val homeUiState by homeViewModel.uiState.collectAsState()
     val reviewUiState by reviewViewModel.uiState.collectAsState()
@@ -87,9 +101,84 @@ fun MainNavigation() {
     val historyUiState by historyViewModel.uiState.collectAsState()
     val settingsUiState by settingsViewModel.uiState.collectAsState()
     val mapUiState by mapViewModel.uiState.collectAsState()
+    val scanState by scanViewModel.scanState.collectAsState()
 
     var currentScreen by remember { mutableStateOf(AppMockupScreen.HOME) }
     var activeScanId by remember { mutableStateOf<String?>(null) }
+    var lastErrorMessage by remember { mutableStateOf("Hindi maikonekta sa server.") }
+
+    // 1. Configure ML Kit Document Scanner: 1 page, JPEG, gallery import (Rule 1)
+    val scannerOptions = remember {
+        GmsDocumentScannerOptions.Builder()
+            .setPageLimit(1)
+            .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
+            .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+            .setGalleryImportAllowed(true)
+            .build()
+    }
+    val scanner = remember { GmsDocumentScanning.getClient(scannerOptions) }
+
+    // Scanner result launcher
+    val scannerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val gmsResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
+            val page = gmsResult?.pages?.firstOrNull()
+            val uri = page?.imageUri
+            if (uri != null) {
+                currentScreen = AppMockupScreen.SCANNING
+                scanViewModel.scanImageUri(context.contentResolver, uri)
+            }
+        }
+    }
+
+    // Photo picker fallback launcher
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            currentScreen = AppMockupScreen.SCANNING
+            scanViewModel.scanImageUri(context.contentResolver, uri)
+        }
+    }
+
+    val launchDocumentScanner: () -> Unit = {
+        val activity = context as? Activity
+        if (activity != null) {
+            scanner.getStartScanIntent(activity)
+                .addOnSuccessListener { intentSender ->
+                    scannerLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
+                }
+                .addOnFailureListener {
+                    // Fallback to visual media picker if Google Play Services document scanner is unavailable
+                    photoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
+        } else {
+            photoPickerLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        }
+    }
+
+    // React to Scan State Changes (Rule 2: Show plain error screen on failure/rejection)
+    LaunchedEffect(scanState) {
+        when (val state = scanState) {
+            is ScanState.Success -> {
+                activeScanId = state.scan.id
+                reviewViewModel.setInitialScan(state.scan)
+                currentScreen = AppMockupScreen.REVIEW
+                scanViewModel.resetState()
+            }
+            is ScanState.Error -> {
+                lastErrorMessage = state.message
+                currentScreen = AppMockupScreen.ERROR
+            }
+            else -> {}
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -107,8 +196,12 @@ fun MainNavigation() {
                 )
                 AppMockupScreen.HOME -> Screen02Home(
                     recentScans = homeUiState.recentScans,
-                    onScanClick = { currentScreen = AppMockupScreen.SCANNING },
-                    onUploadClick = { currentScreen = AppMockupScreen.SCANNING },
+                    onScanClick = { launchDocumentScanner() },
+                    onUploadClick = {
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
                     onSampleClick = { sampleType ->
                         val sample = if (sampleType == "triple") {
                             SampleData.sampleScanResult.copy(
@@ -135,9 +228,19 @@ fun MainNavigation() {
                     },
                     onSettingsClick = { currentScreen = AppMockupScreen.SETTINGS }
                 )
-                AppMockupScreen.SCANNING -> Screen03Scanning(
-                    onCancel = { currentScreen = AppMockupScreen.HOME }
-                )
+                AppMockupScreen.SCANNING -> {
+                    val statusMsg = when (val state = scanState) {
+                        is ScanState.Processing -> state.statusMessage
+                        else -> null
+                    }
+                    Screen03Scanning(
+                        statusMessage = statusMsg,
+                        onCancel = {
+                            scanViewModel.resetState()
+                            currentScreen = AppMockupScreen.HOME
+                        }
+                    )
+                }
                 AppMockupScreen.REVIEW -> Screen04Review(
                     scanResult = reviewUiState.scan ?: SampleData.sampleScanResult,
                     onConfirm = {
@@ -147,7 +250,9 @@ fun MainNavigation() {
                             currentScreen = AppMockupScreen.SAVINGS
                         }
                     },
-                    onDeepScan = { /* Handled in Stage 3 */ },
+                    onDeepScan = {
+                        // Deep decipher with high thinking mode
+                    },
                     onBack = { currentScreen = AppMockupScreen.HOME }
                 )
                 AppMockupScreen.SAVINGS -> Screen05Savings(
@@ -207,6 +312,17 @@ fun MainNavigation() {
                     onDirectionsClick = { /* Directions intent */ },
                     onCopyInquiryClick = { /* Clipboard */ },
                     onBack = { currentScreen = AppMockupScreen.MAP }
+                )
+                AppMockupScreen.ERROR -> ScreenError(
+                    errorMessage = lastErrorMessage,
+                    onRetry = {
+                        scanViewModel.resetState()
+                        launchDocumentScanner()
+                    },
+                    onBackToHome = {
+                        scanViewModel.resetState()
+                        currentScreen = AppMockupScreen.HOME
+                    }
                 )
             }
         }

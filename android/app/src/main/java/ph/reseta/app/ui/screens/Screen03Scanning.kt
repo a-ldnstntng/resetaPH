@@ -39,6 +39,7 @@ import ph.reseta.app.ui.components.SecondaryResetaButton
  */
 @Composable
 fun Screen03Scanning(
+    statusMessage: String? = null,
     onCancel: () -> Unit = {}
 ) {
     Box(
@@ -90,7 +91,7 @@ fun Screen03Scanning(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = stringResource(R.string.scanning_title),
+                    text = statusMessage ?: stringResource(R.string.scanning_title),
                     style = MaterialTheme.typography.titleLarge,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
@@ -98,7 +99,7 @@ fun Screen03Scanning(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = stringResource(R.string.scanning_subtitle),
+                    text = if (statusMessage != null) "Maaaring tumagal ng ilang segundo depende sa internet." else stringResource(R.string.scanning_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFFB0C4BC),
                     textAlign = TextAlign.Center

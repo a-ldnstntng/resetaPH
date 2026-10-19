@@ -1,10 +1,11 @@
 // server.ts
 import "dotenv/config";
-import express from "express";
+import express, { type Request, type Response } from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, ThinkingLevel, Type, type Schema } from "@google/genai";
+import { lookupCatalogItem } from "./src/lib/catalog.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,8 +28,9 @@ PHILIPPINE MEDICAL PRESCRIPTION RULES & SHORTHAND:
      * Paracetamol: 500mg, Mefenamic Acid: 500mg, Ibuprofen: 200mg/400mg
      * Atorvastatin: 20mg, 40mg, Simvastatin: 20mg
      * Cetirizine: 10mg, Omeprazole: 20mg, Salbutamol: 2mg
-   - Do not stop after the first few lines; prescriptions typically have 2 to 6 medications.
-   - Do not invent medicines not written. If any field (genericName, strength, quantity, sig) is difficult to read, include the item and list the field names in "uncertainFields".`;
+   - Do not stop after the first few lines; prescriptions can have 15 or more medications.
+   - Never invent medicines not written. If any field (genericName, strength, quantity, sig) is difficult to read, include the item and list the field names in "uncertainFields".
+   - Never drop a medication line; transcribe every single medication line found.`;
 
 const extractionSchema: Schema = {
   type: Type.OBJECT,
@@ -75,7 +77,7 @@ const extractionSchema: Schema = {
     items: {
       type: Type.ARRAY,
       description:
-        "One entry for every line where isMedication is true. No maxItems limit.",
+        "One entry for every line where isMedication is true. No max limit (supports 15+ medications).",
       items: {
         type: Type.OBJECT,
         properties: {
@@ -179,14 +181,14 @@ function stripJsonFences(text: string): string {
   return trimmed;
 }
 
-// Rate limiter: Max 15 scan requests per minute per IP address
-const scanRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+// Rate limiter: Keyed by both Install ID and IP (Rule 6 & Rule 8)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
-function checkRateLimit(ip: string, maxRequests = 15, windowMs = 60000): boolean {
+function checkRateLimit(key: string, maxRequests = 15, windowMs = 60000): boolean {
   const now = Date.now();
-  const entry = scanRateLimitMap.get(ip);
+  const entry = rateLimitMap.get(key);
   if (!entry || now > entry.resetAt) {
-    scanRateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
+    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
     return true;
   }
   if (entry.count >= maxRequests) {
@@ -198,9 +200,9 @@ function checkRateLimit(ip: string, maxRequests = 15, windowMs = 60000): boolean
 
 setInterval(() => {
   const now = Date.now();
-  for (const [ip, entry] of scanRateLimitMap.entries()) {
+  for (const [key, entry] of rateLimitMap.entries()) {
     if (now > entry.resetAt) {
-      scanRateLimitMap.delete(ip);
+      rateLimitMap.delete(key);
     }
   }
 }, 300000);
@@ -208,9 +210,10 @@ setInterval(() => {
 async function startServer() {
   const app = express();
   app.set("trust proxy", 1);
-  app.use(express.json({ limit: "10mb" }));
+  // Support full quality scan images up to 20MB
+  app.use(express.json({ limit: "25mb" }));
 
-  app.get("/healthz", (_req, res) => {
+  app.get("/healthz", (_req: Request, res: Response) => {
     res.json({
       status: "ok",
       uptimeSeconds: Math.floor(process.uptime()),
@@ -218,11 +221,15 @@ async function startServer() {
     });
   });
 
-  app.post("/api/scan", async (req, res) => {
+  // POST /api/scan
+  app.post("/api/scan", async (req: Request, res: Response) => {
     const clientIp =
       (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
       req.ip ||
       "unknown";
+
+    const installId = (req.headers["x-install-id"] as string)?.trim() || "no-install-id";
+    const rateLimitKey = `${installId}:${clientIp}`;
 
     const { mimeType, base64Data, deepScan, language } = req.body as {
       mimeType?: string;
@@ -233,7 +240,8 @@ async function startServer() {
 
     const lang = language === "fil" ? "fil" : "en";
 
-    if (!checkRateLimit(clientIp)) {
+    // 1. Rate Limiting Check (Rule 6 & 8)
+    if (!checkRateLimit(rateLimitKey)) {
       res.status(429).json({
         error:
           lang === "fil"
@@ -243,32 +251,55 @@ async function startServer() {
       return;
     }
 
+    // 2. Content Type Validation (Rule 8)
+    const validMimes = ["image/jpeg", "image/png", "image/webp"];
+    if (!mimeType || !validMimes.includes(mimeType.toLowerCase())) {
+      res.status(400).json({
+        error:
+          lang === "fil"
+            ? "Hindi suportadong format ng larawan. Gamitin ang JPEG o PNG."
+            : "Unsupported image format. Please send a JPEG or PNG image.",
+      });
+      return;
+    }
+
+    // 3. Image Size Validation (Rule 8)
+    if (!base64Data || base64Data.length < 100) {
+      res.status(400).json({
+        error: lang === "fil" ? "Nawawala ang larawan ng reseta" : "Missing prescription image data",
+      });
+      return;
+    }
+
+    if (base64Data.length > 25 * 1024 * 1024) {
+      res.status(413).json({
+        error:
+          lang === "fil"
+            ? "Masyadong malaki ang larawan. Hanggang 20MB lamang ang pinapayagan."
+            : "Image payload exceeds the maximum 20MB limit.",
+      });
+      return;
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      res.status(500).json({
+        error:
+          lang === "fil"
+            ? "Nawawala ang GEMINI_API_KEY sa .env file. Mangyaring i-set up ang iyong Gemini API key para magamit ang AI scan."
+            : "Missing GEMINI_API_KEY in .env file. Please set up your Gemini API key to use AI scan.",
+      });
+      return;
+    }
+
     const startMs = Date.now();
+    const isDeep = Boolean(deepScan);
+
+    // Rule 4: DO NOT log request images or extracted text!
+    console.log(
+      `[ResetaPH Scan] Processing scan request from IP=${clientIp}, InstallID=${installId.slice(0, 8)}... (${mimeType}, deepScan=${isDeep})`
+    );
+
     try {
-      if (!mimeType || !base64Data) {
-        res.status(400).json({
-          error: lang === "fil" ? "Nawawala ang larawan ng reseta" : "Missing prescription image data",
-        });
-        return;
-      }
-
-      if (!process.env.GEMINI_API_KEY) {
-        res.status(500).json({
-          error:
-            lang === "fil"
-              ? "Nawawala ang GEMINI_API_KEY sa .env file. Mangyaring i-set up ang iyong Gemini API key para magamit ang AI scan."
-              : "Missing GEMINI_API_KEY in .env file. Please set up your Gemini API key to use AI scan.",
-        });
-        return;
-      }
-
-      const isDeep = Boolean(deepScan);
-      console.log(
-        `[ResetaPH Scan] Starting Gemini extraction (${mimeType}, ${Math.round(
-          base64Data.length / 1024
-        )} KB base64, deepScan=${isDeep}, lang=${lang})...`
-      );
-
       const ai = new GoogleGenAI({
         apiKey: process.env.GEMINI_API_KEY,
         httpOptions: {
@@ -285,8 +316,13 @@ async function startServer() {
         ? `${EXTRACTION_PROMPT}\n\nDEEP DECIPHER MODE: Examine ambiguous cursive handwriting strokes meticulously. Cross-reference doctor abbreviations and letter patterns with standard Philippine FDA drug formulations.\n\n${langInstruction}\n\nFirst transcribe every numbered medication block or line on the slip in reading order into \`lines\` with \`rawText\` and \`isMedication\`. Set \`medicationLineCount\` to the count of lines where \`isMedication\` is true. Then populate \`items\` with one entry for every line where \`isMedication\` is true. Never drop a medication line silently—if any field (genericName, strength, quantity, sig) is hard to read or missing, still include the item and list the uncertain field names in \`uncertainFields\`. Use valid slots from ["umaga", "tanghali", "gabi"].`
         : `${EXTRACTION_PROMPT}\n\n${langInstruction}\n\nFirst transcribe every numbered medication block or line on the slip in reading order into \`lines\` with \`rawText\` and \`isMedication\`. Set \`medicationLineCount\` to the count of lines where \`isMedication\` is true. Then populate \`items\` with one entry for every line where \`isMedication\` is true. Never drop a medication line silently—if any field (genericName, strength, quantity, sig) is hard to read or missing, still include the item and list the uncertain field names in \`uncertainFields\`. Use valid slots from ["umaga", "tanghali", "gabi"].`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+      // 45-second request timeout (Rule 8)
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("REQUEST_TIMEOUT")), 45000)
+      );
+
+      const geminiPromise = ai.models.generateContent({
+        model: "gemini-2.5-flash",
         contents: {
           parts: [
             {
@@ -303,36 +339,164 @@ async function startServer() {
         config: {
           responseMimeType: "application/json",
           responseSchema: extractionSchema,
-          maxOutputTokens: 16384,
+          maxOutputTokens: 16384, // Rule 6: High token limit for 15+ medications
           thinkingConfig: {
             thinkingLevel: isDeep ? ThinkingLevel.HIGH : ThinkingLevel.LOW,
           },
         },
       });
 
+      const response = await Promise.race([geminiPromise, timeoutPromise]);
+
+      // Rule 6: Never parse truncated JSON
+      const candidate = response.candidates?.[0];
+      if (candidate?.finishReason === "MAX_TOKENS") {
+        console.warn(`[ResetaPH Scan] Scan output was truncated by token limit.`);
+        res.status(422).json({
+          error:
+            lang === "fil"
+              ? "Naputol ang resulta ng AI scan dahil sa sobrang haba. Pakisubukan muling i-scan ang reseta nang mas malapit."
+              : "Scan response was truncated by the model. Please scan the prescription closer or in parts.",
+        });
+        return;
+      }
+
       const rawText = stripJsonFences(response.text ?? "{}");
-      const parsed = JSON.parse(rawText) as {
-        items?: unknown[];
+      let parsed: {
+        lines?: Array<{ rawText: string; isMedication: boolean }>;
         medicationLineCount?: number;
+        doctorName?: string | null;
+        prcNumber?: string | null;
+        dateOnSlip?: string | null;
+        readScore?: number | null;
+        items?: Array<{
+          writtenAs: string;
+          sigRaw?: string;
+          brandName?: string | null;
+          genericName: string;
+          strength: string;
+          form: string;
+          quantity: number;
+          dosesPerDay: number;
+          durationDays?: number | null;
+          slots: string[];
+          mealNote?: string | null;
+          mealNoteEn?: string | null;
+          noteTl?: string | null;
+          noteEn?: string | null;
+          uncertainFields?: string[];
+        }>;
       };
 
+      try {
+        parsed = JSON.parse(rawText);
+      } catch (_jsonErr) {
+        console.error(`[ResetaPH Scan] Failed to parse model JSON.`);
+        res.status(422).json({
+          error:
+            lang === "fil"
+              ? "Hindi mabasa ang buong structure ng reseta. Pakisigurado na malinaw ang kuha ng camera."
+              : "Could not parse prescription structure. Please ensure the prescription photo is clear and well-lit.",
+        });
+        return;
+      }
+
+      const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+      const medicationLineCount = parsed.medicationLineCount ?? rawItems.length;
+
+      // Rule 5: Line count mismatch detection
+      const lineCountMismatch = medicationLineCount !== rawItems.length;
+      const mismatchNotice = lineCountMismatch
+        ? lang === "fil"
+          ? "May hindi nabasa na gamot. Pakisigurado ang reseta."
+          : "Some medication lines were not fully recognized. Please verify the prescription carefully."
+        : null;
+
+      // Rule 7: Validate each drug name against the drug table. Return matched catalog ID or null.
+      // Unknown names are flagged "Pakisigurado", never auto-corrected, never dropped.
+      // Return NO prices from this endpoint!
+      const validatedItems = rawItems.map((item, index) => {
+        const matched =
+          lookupCatalogItem(item.genericName, item.strength) ||
+          (item.brandName ? lookupCatalogItem(item.brandName, item.strength) : undefined) ||
+          lookupCatalogItem(item.writtenAs, item.strength);
+
+        const uncertain = Array.isArray(item.uncertainFields) ? [...item.uncertainFields] : [];
+        const safetyWarnings: Array<{
+          code: string;
+          severity: "INFO" | "CAUTION" | "WARNING";
+          messageTl: string;
+          messageEn: string;
+        }> = [];
+
+        let catalogId: string | null = null;
+        if (matched) {
+          catalogId = matched.genericName;
+        } else {
+          catalogId = null;
+          if (!uncertain.includes("genericName")) {
+            uncertain.push("genericName");
+          }
+          safetyWarnings.push({
+            code: "UNMATCHED_DRUG",
+            severity: "CAUTION",
+            messageTl: `Pakisigurado sa doktor o botika: Hindi nakatugma sa official drug table ang "${item.genericName || item.writtenAs}".`,
+            messageEn: `Pakisigurado: "${item.genericName || item.writtenAs}" was not found in our drug catalog. Confirm with your doctor or pharmacist.`,
+          });
+        }
+
+        return {
+          id: `item-${index + 1}-${Date.now()}`,
+          writtenAs: item.writtenAs,
+          brandName: item.brandName ?? null,
+          genericName: item.genericName, // Keep original, never auto-correct
+          strength: item.strength,
+          form: item.form,
+          quantity: item.quantity > 0 ? item.quantity : 1,
+          dosesPerDay: item.dosesPerDay > 0 ? item.dosesPerDay : 1,
+          durationDays: item.durationDays ?? null,
+          slots: item.slots && item.slots.length > 0 ? item.slots : ["umaga"],
+          mealNoteTl: item.mealNote ?? null,
+          mealNoteEn: item.mealNoteEn ?? null,
+          noteTl: item.noteTl ?? null,
+          noteEn: item.noteEn ?? null,
+          uncertainFields: uncertain,
+          catalogId, // Matched catalog ID or null (Rule 7)
+          isMatched: Boolean(matched),
+          safetyWarnings, // Flagged "Pakisigurado" if unknown
+          // ZERO PRICES RETURNED HERE (Rule 2 & Rule 7)
+        };
+      });
+
       console.log(
-        `[ResetaPH Scan] Completed in ${Date.now() - startMs}ms. Raw model response:`,
-        rawText
-      );
-      console.log(
-        "[ResetaPH Scan] Parsed item count:",
-        Array.isArray(parsed.items) ? parsed.items.length : 0,
-        "Medication line count:",
-        parsed.medicationLineCount
+        `[ResetaPH Scan] Completed in ${Date.now() - startMs}ms: ${validatedItems.length} items extracted, lineCountMismatch=${lineCountMismatch}`
       );
 
-      res.json({ rawText, extraction: parsed });
+      res.json({
+        id: `scan-${Date.now()}`,
+        lines: parsed.lines || [],
+        medicationLineCount,
+        lineCountMismatch,
+        mismatchNotice,
+        doctorName: parsed.doctorName ?? null,
+        prcNumber: parsed.prcNumber ?? null,
+        dateOnSlip: parsed.dateOnSlip ?? null,
+        readScore: parsed.readScore ?? 85,
+        items: validatedItems,
+        scannedAtTimestamp: Date.now(),
+      });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to analyze prescription";
-      console.error(`[ResetaPH Scan] Error after ${Date.now() - startMs}ms:`, message);
-      res.status(500).json({ error: message });
+      const err = error as Error;
+      const isTimeout = err.message === "REQUEST_TIMEOUT";
+      const statusCode = isTimeout ? 504 : 500;
+      const message = isTimeout
+        ? lang === "fil"
+          ? "Nag-timeout ang request sa AI server. Pakisubukan muli."
+          : "Request to AI server timed out. Please try again."
+        : err.message || "Failed to analyze prescription";
+
+      console.error(`[ResetaPH Scan] Error after ${Date.now() - startMs}ms (status ${statusCode})`);
+      res.status(statusCode).json({ error: message });
     }
   });
 

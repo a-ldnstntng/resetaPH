@@ -16,6 +16,7 @@ interface AppContainer {
     val pricingRepository: PricingRepository
     val pharmacyRepository: PharmacyRepository
     val userPreferencesRepository: UserPreferencesRepository
+    val apiClient: ph.reseta.app.data.api.ResetaApiClient
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -38,5 +39,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val userPreferencesRepository: UserPreferencesRepository by lazy {
         DataStoreUserPreferencesRepository(context)
+    }
+
+    override val apiClient: ph.reseta.app.data.api.ResetaApiClient by lazy {
+        ph.reseta.app.data.api.ResetaApiClient()
     }
 }

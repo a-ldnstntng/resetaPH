@@ -16,9 +16,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "API_BASE_URL", "\"http://localhost:3000/\"")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            buildConfigField("String", "API_BASE_URL", "\"https://api.reseta.ph/\"")
         }
     }
     compileOptions {
@@ -94,4 +98,10 @@ dependencies {
   implementation("androidx.room:room-runtime:2.6.1")
   implementation("androidx.room:room-ktx:2.6.1")
   annotationProcessor("androidx.room:room-compiler:2.6.1")
+
+  // ML Kit Document Scanner (1 page, JPEG, gallery import)
+  implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
+
+  // Networking (OkHttp with timeouts and headers)
+  implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
