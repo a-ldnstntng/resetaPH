@@ -1,0 +1,80 @@
+<resources>
+    <string name="app_name">ResetaPH</string>
+    <string name="brand_tagline">Know the right medicine, estimated prices, and how to take them.</string>
+
+    <!-- Navigation & Tabs -->
+    <string name="tab_savings">Prices</string>
+    <string name="tab_schedule">Schedule</string>
+    <string name="tab_safety">Safety</string>
+    <string name="tab_pharmacies">Pharmacies</string>
+
+    <!-- Home & Welcome -->
+    <string name="home_hero_title">Scan your prescription</string>
+    <string name="home_hero_subtitle">Take a clear photo of the prescription for AI to read medication and dosage schedule.</string>
+    <string name="scan_cta">Take Prescription Photo</string>
+    <string name="upload_cta">Choose from Gallery</string>
+    <string name="sample_header">Try a sample prescription</string>
+    <string name="sample_aug_amlo">Antibiotic &amp; Maintenance (Augmentin &amp; Amlodipine)</string>
+    <string name="sample_triple">Triple Maintenance (Metformin, Losartan, Atorvastatin)</string>
+    <string name="history_header">Recent Scans</string>
+    <string name="history_empty">No saved prescriptions in history yet.</string>
+    <string name="clear_history">Clear History</string>
+    <string name="disclaimer_footer">This is a guide only. Not a substitute for advice from a licensed physician or pharmacist.</string>
+
+    <!-- Scanning Overlay -->
+    <string name="scanning_title">Reading prescription...</string>
+    <string name="scanning_subtitle">Analyzing doctor cursive handwriting, medicines, and dosage schedule.</string>
+
+    <!-- Review Screen -->
+    <string name="review_title">Review Medications</string>
+    <string name="review_subtitle">Verify that all medicines were transcribed correctly before viewing prices.</string>
+    <string name="review_count_match">All medication lines were successfully transcribed.</string>
+    <string name="review_count_mismatch">Possible missing medicine detected. Please verify carefully.</string>
+    <string name="deep_scan_cta">Try Deep AI Decipher</string>
+    <string name="confirm_review_cta">View Prices &amp; Schedule</string>
+    <string name="uncertain_field_tag">Uncertain</string>
+
+    <!-- Savings & Pricing Screen -->
+    <string name="savings_hero_title">Estimated Savings</string>
+    <string name="savings_hero_subtitle">Based on choosing quality Generics over Branded equivalents.</string>
+    <string name="generic_price_label">Generic (Estimate)</string>
+    <string name="branded_price_label">Branded Equivalent</string>
+    <string name="price_estimate_badge">Est · %1$s</string>
+    <string name="dated_price_disclaimer">Prices are estimates based on DOH DPRI and retail price surveys as of %1$s.</string>
+    <string name="lowest_price_badge">Lowest Price</string>
+
+    <!-- Schedule Screen -->
+    <string name="schedule_title">Dosage Schedule</string>
+    <string name="schedule_subtitle">Follow scheduled times to maximize medication efficacy.</string>
+    <string name="slot_morning">Morning</string>
+    <string name="slot_noon">Noon</string>
+    <string name="slot_night">Night</string>
+    <string name="listen_schedule_cta">Listen to Schedule</string>
+    <string name="audio_fallback_notice">No native fil-PH voice found on device. Using available speech voice.</string>
+
+    <!-- Counter Mode -->
+    <string name="counter_mode_title">Pharmacy Counter Mode</string>
+    <string name="counter_mode_subtitle">Show this high-contrast card to the pharmacist at the dispensary counter.</string>
+    <string name="counter_mode_cta">Open Counter Mode</string>
+    <string name="close_counter_cta">Close</string>
+
+    <!-- Nearby Pharmacies -->
+    <string name="pharmacies_title">Nearby Pharmacies</string>
+    <string name="pharmacies_subtitle">View TGP, Mercury Drug, and Watsons branches closest to you.</string>
+    <string name="open_in_maps">Open in Maps / Waze</string>
+    <string name="copy_inquiry_cta">Copy Pharmacy Inquiry</string>
+    <string name="inquiry_copied">Inquiry message copied to clipboard!</string>
+
+    <!-- Settings & Onboarding -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_language">Language / Wika</string>
+    <string name="lang_taglish">Taglish (Filipino default)</string>
+    <string name="lang_english">English</string>
+    <string name="settings_data_privacy">Data &amp; Privacy</string>
+    <string name="delete_history_confirm">Are you sure you want to delete all saved prescription scans?</string>
+    <string name="onboarding_title">Welcome to ResetaPH</string>
+    <string name="onboarding_subtitle">Select your preferred language for prescriptions and reminders.</string>
+    <string name="onboarding_hint">You can change this anytime in Settings.</string>
+    <string name="continue_cta">Continue</string>
+    <string name="scan_again">Scan Again</string>
+</resources>

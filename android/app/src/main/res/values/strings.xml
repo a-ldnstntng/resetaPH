@@ -1,0 +1,80 @@
+<resources>
+    <string name="app_name">ResetaPH</string>
+    <string name="brand_tagline">Alamin ang tamang gamot, tinatayang presyo, at paano inumin.</string>
+
+    <!-- Navigation & Tabs -->
+    <string name="tab_savings">Presyo</string>
+    <string name="tab_schedule">Schedule</string>
+    <string name="tab_safety">Safety</string>
+    <string name="tab_pharmacies">Mga Botika</string>
+
+    <!-- Home & Welcome -->
+    <string name="home_hero_title">I-scan ang iyong reseta</string>
+    <string name="home_hero_subtitle">Kumuha ng malinaw na litrato ng reseta para mabasa ng AI ang gamot at dosage.</string>
+    <string name="scan_cta">Kumuha ng Litrato ng Reseta</string>
+    <string name="upload_cta">Pumili mula sa Gallery</string>
+    <string name="sample_header">Subukan ang sample na reseta</string>
+    <string name="sample_aug_amlo">Antibiotic at Maintenance (Augmentin &amp; Amlodipine)</string>
+    <string name="sample_triple">Triple Maintenance (Metformin, Losartan, Atorvastatin)</string>
+    <string name="history_header">Mga Nakaraang Na-scan</string>
+    <string name="history_empty">Wala pang na-save na reseta sa history.</string>
+    <string name="clear_history">Burahin ang History</string>
+    <string name="disclaimer_footer">Gabay lamang ito. Hindi kapalit ng payo ng lisensyadong doktor o parmasyutiko.</string>
+
+    <!-- Scanning Overlay -->
+    <string name="scanning_title">Binabasa ang reseta...</string>
+    <string name="scanning_subtitle">Sinusuri ang sulat-kamay ng doktor, mga gamot, at dosage schedule.</string>
+
+    <!-- Review Screen -->
+    <string name="review_title">Suriin ang mga Gamot</string>
+    <string name="review_subtitle">I-verify kung tama ang nabasang gamot bago tingnan ang presyo.</string>
+    <string name="review_count_match">Lahat ng linya ng gamot ay matagumpay na nabasa.</string>
+    <string name="review_count_mismatch">May posibleng hindi nabasang gamot. Pakisuri nang mabuti.</string>
+    <string name="deep_scan_cta">Subukan ang Deep AI Decipher</string>
+    <string name="confirm_review_cta">Tingnan ang Presyo at Schedule</string>
+    <string name="uncertain_field_tag">Hindi Tiyak</string>
+
+    <!-- Savings & Pricing Screen -->
+    <string name="savings_hero_title">Tinatayang Matitipid</string>
+    <string name="savings_hero_subtitle">Base sa pagpili ng de-kalidad na Generic kaysa Branded.</string>
+    <string name="generic_price_label">Generic (Tantya)</string>
+    <string name="branded_price_label">Branded Katumbas</string>
+    <string name="price_estimate_badge">Tantya · %1$s</string>
+    <string name="dated_price_disclaimer">Ang mga presyo ay tinatayang base sa DOH DPRI at retail price survey noong %1$s.</string>
+    <string name="lowest_price_badge">Pinakamura</string>
+
+    <!-- Schedule Screen -->
+    <string name="schedule_title">Schedule ng Pag-inom</string>
+    <string name="schedule_subtitle">Sundin ang tamang oras upang maging mabisa ang gamot.</string>
+    <string name="slot_morning">Umaga</string>
+    <string name="slot_noon">Tanghali</string>
+    <string name="slot_night">Gabi</string>
+    <string name="listen_schedule_cta">Pakinggan ang Schedule</string>
+    <string name="audio_fallback_notice">Walang native fil-PH voice sa device. Gagamitin ang available voice.</string>
+
+    <!-- Counter Mode -->
+    <string name="counter_mode_title">Pharmacy Counter Mode</string>
+    <string name="counter_mode_subtitle">Ipakita ang malaking card na ito sa pharmacist sa botika.</string>
+    <string name="counter_mode_cta">Ipakita sa Counter</string>
+    <string name="close_counter_cta">Isara</string>
+
+    <!-- Nearby Pharmacies -->
+    <string name="pharmacies_title">Mga Botika sa Paligid</string>
+    <string name="pharmacies_subtitle">Tingnan ang mga branch ng TGP, Mercury Drug, at Watsons na malapit sa iyo.</string>
+    <string name="open_in_maps">Buksan sa Maps / Waze</string>
+    <string name="copy_inquiry_cta">Kopyahin ang Tanong sa Botika</string>
+    <string name="inquiry_copied">Nakopya na sa clipboard ang inquiry text!</string>
+
+    <!-- Settings & Onboarding -->
+    <string name="settings_title">Mga Setting</string>
+    <string name="settings_language">Wika / Language</string>
+    <string name="lang_taglish">Taglish (Filipino default)</string>
+    <string name="lang_english">English</string>
+    <string name="settings_data_privacy">Data at Privacy</string>
+    <string name="delete_history_confirm">Sigurado ka bang buburahin ang lahat ng saved scans?</string>
+    <string name="onboarding_title">Maligayang Pagdating sa ResetaPH</string>
+    <string name="onboarding_subtitle">Pumili ng wika para sa iyong reseta at mga paalala.</string>
+    <string name="onboarding_hint">Maaari mo itong palitan anumang oras sa Settings.</string>
+    <string name="continue_cta">Magpatuloy</string>
+    <string name="scan_again">Mag-scan Ulit</string>
+</resources>
