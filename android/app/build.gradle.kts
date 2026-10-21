@@ -13,6 +13,7 @@ if (localPropertiesFile.exists()) {
     FileInputStream(localPropertiesFile).use { localProperties.load(it) }
 }
 val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY") ?: ""
+val apiBaseUrl: String = localProperties.getProperty("API_BASE_URL") ?: "http://192.168.0.28:3000/"
 
 android {
     namespace = "ph.reseta.app"
@@ -29,7 +30,7 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "API_BASE_URL", "\"http://localhost:3000/\"")
+            buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         }
         release {
             isMinifyEnabled = false

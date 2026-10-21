@@ -351,11 +351,25 @@ class ScanViewModel(
     private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
     val scanState: StateFlow<ScanState> = _scanState.asStateFlow()
 
+    private var lastScannedUri: Uri? = null
+    private var lastDeepScan: Boolean = false
+
     fun resetState() {
         _scanState.value = ScanState.Idle
     }
 
+    fun retryLastScan(contentResolver: ContentResolver, onNoPreviousScan: () -> Unit) {
+        val uri = lastScannedUri
+        if (uri != null) {
+            scanImageUri(contentResolver, uri, lastDeepScan)
+        } else {
+            onNoPreviousScan()
+        }
+    }
+
     fun scanImageUri(contentResolver: ContentResolver, uri: Uri, deepScan: Boolean = false) {
+        lastScannedUri = uri
+        lastDeepScan = deepScan
         viewModelScope.launch {
             _scanState.value = ScanState.Processing("Inihahanda ang malinaw na litrato...")
             try {

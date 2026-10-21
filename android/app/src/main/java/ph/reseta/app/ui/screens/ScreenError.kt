@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -35,27 +38,45 @@ import ph.reseta.app.ui.components.ResetaTopBar
 import ph.reseta.app.ui.components.SecondaryResetaButton
 
 /**
- * Plain error screen on network failure or rejected scan (Rule 2).
+ * Screen displayed on network failure, no internet connection, or rejected scan.
  */
 @Composable
 fun ScreenError(
-    errorMessage: String = "Hindi maikonekta sa server. Pakisigurado na bukas ang backend.",
+    errorMessage: String = "Walang koneksyon sa internet. Pakisuri ang iyong koneksyon.",
     onRetry: () -> Unit = {},
     onBackToHome: () -> Unit = {}
 ) {
+    val isNetworkIssue = errorMessage.contains("internet", ignoreCase = true) ||
+            errorMessage.contains("koneksyon", ignoreCase = true) ||
+            errorMessage.contains("server", ignoreCase = true) ||
+            errorMessage.contains("timeout", ignoreCase = true)
+
+    val headlineTitle = if (isNetworkIssue) {
+        "Walang Koneksyon sa Internet"
+    } else {
+        "Hindi Na-proseso ang Reseta"
+    }
+
+    val retryCta = if (isNetworkIssue) {
+        "Subukang Muli (Retry)"
+    } else {
+        "Subukan Muling I-scan"
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
         ResetaTopBar(
-            title = "May Naging Problema",
+            title = if (isNetworkIssue) "Koneksyon sa Network" else "May Naging Problema",
             onBackClick = onBackToHome
         )
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
@@ -71,7 +92,7 @@ fun ScreenError(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CloudOff,
+                        imageVector = if (isNetworkIssue) Icons.Default.WifiOff else Icons.Default.CloudOff,
                         contentDescription = null,
                         tint = ResetaDanger,
                         modifier = Modifier.size(44.dp)
@@ -82,14 +103,14 @@ fun ScreenError(
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "Hindi Na-proseso ang Reseta",
+                text = headlineTitle,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = ResetaInk,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             ResetaCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -97,14 +118,16 @@ fun ScreenError(
                     style = MaterialTheme.typography.bodyMedium,
                     color = ResetaInkMuted,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(28.dp))
 
             PrimaryResetaButton(
-                text = "Subukan Muling I-scan",
+                text = retryCta,
                 onClick = onRetry,
                 icon = Icons.Default.Refresh
             )

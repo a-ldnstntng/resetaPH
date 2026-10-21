@@ -214,6 +214,18 @@ async function startServer() {
   app.use(express.json({ limit: "25mb" }));
   app.use(express.text({ type: ["text/csv", "text/plain"], limit: "5mb" }));
 
+  // CORS support for LAN dev & mobile client access
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, x-install-id");
+    if (req.method === "OPTIONS") {
+      res.sendStatus(200);
+      return;
+    }
+    next();
+  });
+
   app.get("/healthz", (_req: Request, res: Response) => {
     res.json({
       status: "ok",
@@ -631,8 +643,14 @@ async function startServer() {
   }
 
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-  const server = app.listen(port, () => {
-    console.log(`Server listening on http://localhost:${port}`);
+  const host = process.env.HOST || "0.0.0.0";
+  const server = app.listen(port, host, () => {
+    console.log(`\n==================================================`);
+    console.log(`  ResetaPH Backend Server Running`);
+    console.log(`  Local:   http://localhost:${port}`);
+    console.log(`  Network: http://192.168.0.28:${port}`);
+    console.log(`  Binding: ${host}:${port}`);
+    console.log(`==================================================\n`);
   });
 
   const shutdown = () => {

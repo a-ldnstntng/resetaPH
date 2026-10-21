@@ -42,6 +42,6 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val apiClient: ph.reseta.app.data.api.ResetaApiClient by lazy {
-        ph.reseta.app.data.api.ResetaApiClient()
+        ph.reseta.app.data.api.ResetaApiClient(context)
     }
 }

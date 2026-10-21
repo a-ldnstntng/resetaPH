@@ -311,11 +311,21 @@ export async function analyzePrescription(
   language: Language = "en"
 ): Promise<AnalyzePrescriptionOutcome> {
   if (input instanceof File) {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      const offlineMsg =
+        language === "fil"
+          ? "Walang koneksyon sa internet. Pakisuri ang iyong Wi-Fi o mobile data."
+          : "No internet connection. Please check your Wi-Fi or cellular network.";
+      console.error("[ResetaNetwork] Device is offline:", { url: "/api/scan", offline: true });
+      throw new Error(offlineMsg);
+    }
+
     const { mimeType, base64Data } = await enhancePrescriptionImage(input);
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), deepScan ? 90000 : 45000);
 
     try {
+      console.log(`[ResetaNetwork] --> POST /api/scan (mimeType=${mimeType}, size=${base64Data.length} chars, deepScan=${deepScan})`);
       const response = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -327,7 +337,12 @@ export async function analyzePrescription(
         const errBody = (await response.json().catch(() => ({}))) as {
           error?: string;
         };
-        throw new Error(errBody.error || `Scan request failed (${response.status})`);
+        const errorDetail = errBody.error || `Scan request failed with HTTP ${response.status}`;
+        console.error("[ResetaNetwork] <-- HTTP Error:", {
+          status: response.status,
+          error: errorDetail,
+        });
+        throw new Error(errorDetail);
       }
 
       const payload = (await response.json()) as {
@@ -335,15 +350,15 @@ export async function analyzePrescription(
         extraction: PrescriptionExtractionResponse;
       };
 
-      console.log("[ResetaPH Scan] Raw model response text:", payload.rawText);
-      console.log(
-        "[ResetaPH Scan] Parsed item count:",
-        Array.isArray(payload.extraction?.items)
-          ? payload.extraction.items.length
-          : 0
-      );
+      console.log(`[ResetaNetwork] <-- SUCCESS 200 /api/scan. Parsed ${payload.extraction?.items?.length || 0} medications.`);
 
       return mapExtractionToScanResult(payload.extraction, language);
+    } catch (err) {
+      console.error("[ResetaNetwork] <-- Request Failed:", {
+        url: "/api/scan",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
     } finally {
       window.clearTimeout(timeoutId);
     }

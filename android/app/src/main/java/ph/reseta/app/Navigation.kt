@@ -332,8 +332,10 @@ fun MainNavigation() {
             AppScreen.ERROR -> ScreenError(
                 errorMessage = lastErrorMessage,
                 onRetry = {
-                    scanViewModel.resetState()
-                    launchDocumentScanner()
+                    scanViewModel.retryLastScan(context.contentResolver) {
+                        scanViewModel.resetState()
+                        launchDocumentScanner()
+                    }
                 },
                 onBackToHome = {
                     scanViewModel.resetState()
