@@ -28,6 +28,8 @@ class ResetaTtsManager(private val context: Context) : TextToSpeech.OnInitListen
     }
 
     private var tts: TextToSpeech? = null
+    private var hasFilVoice: Boolean = false
+    private var voiceNotice: String? = null
 
     private val _state = MutableStateFlow<TtsState>(TtsState.Uninitialized)
     val state: StateFlow<TtsState> = _state.asStateFlow()
@@ -47,8 +49,8 @@ class ResetaTtsManager(private val context: Context) : TextToSpeech.OnInitListen
     private fun setupVoice() {
         val t = tts ?: return
 
-        val filLocale = Locale("fil", "PH")
-        val tlLocale = Locale("tl", "PH")
+        val filLocale = Locale.forLanguageTag("fil-PH")
+        val tlLocale = Locale.forLanguageTag("tl-PH")
 
         val filAvailable = t.isLanguageAvailable(filLocale)
         val tlAvailable = t.isLanguageAvailable(tlLocale)
@@ -60,12 +62,12 @@ class ResetaTtsManager(private val context: Context) : TextToSpeech.OnInitListen
             (loc.language.equals("tl", ignoreCase = true) && loc.country.equals("PH", ignoreCase = true))
         }
 
-        val hasFilVoice = (filAvailable >= TextToSpeech.LANG_AVAILABLE) ||
-                          (tlAvailable >= TextToSpeech.LANG_AVAILABLE) ||
-                          (filVoice != null)
+        val discoveredFilVoice = (filAvailable >= TextToSpeech.LANG_AVAILABLE) ||
+                                (tlAvailable >= TextToSpeech.LANG_AVAILABLE) ||
+                                (filVoice != null)
 
         val notice: String?
-        if (hasFilVoice) {
+        if (discoveredFilVoice) {
             if (filVoice != null) {
                 runCatching { t.voice = filVoice }
             } else if (filAvailable >= TextToSpeech.LANG_AVAILABLE) {
@@ -80,21 +82,29 @@ class ResetaTtsManager(private val context: Context) : TextToSpeech.OnInitListen
             notice = "Walang nakitang Filipino (fil-PH) voice sa device na ito. Gagamitin ang default voice ng device. Paalala: Maaaring kailangan ng internet connection para sa boses at hindi ito gumagana offline."
         }
 
+        this.hasFilVoice = discoveredFilVoice
+        this.voiceNotice = notice
+
         t.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {
                 _state.value = TtsState.Speaking
             }
 
             override fun onDone(utteranceId: String?) {
-                _state.value = TtsState.Ready(hasFilVoice, notice)
+                _state.value = TtsState.Ready(hasFilVoice, voiceNotice)
             }
 
+            @Deprecated("Deprecated in Java")
             override fun onError(utteranceId: String?) {
-                _state.value = TtsState.Ready(hasFilVoice, notice)
+                _state.value = TtsState.Ready(hasFilVoice, voiceNotice)
+            }
+
+            override fun onError(utteranceId: String?, errorCode: Int) {
+                _state.value = TtsState.Ready(hasFilVoice, voiceNotice)
             }
         })
 
-        _state.value = TtsState.Ready(hasFilVoice, notice)
+        _state.value = TtsState.Ready(hasFilVoice, voiceNotice)
     }
 
     /**
@@ -163,8 +173,8 @@ class ResetaTtsManager(private val context: Context) : TextToSpeech.OnInitListen
         val cur = _state.value
         if (cur is TtsState.Speaking) {
             _state.value = TtsState.Ready(
-                hasFilipinoVoice = false,
-                notice = null
+                hasFilipinoVoice = hasFilVoice,
+                notice = voiceNotice
             )
         }
     }

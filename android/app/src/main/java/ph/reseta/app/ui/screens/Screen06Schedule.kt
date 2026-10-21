@@ -69,7 +69,7 @@ fun Screen06Schedule(
     val ttsManager = remember { ResetaTtsManager(context) }
     val ttsState by ttsManager.state.collectAsState()
 
-    DisposableEffect(Unit) {
+    DisposableEffect(ttsManager) {
         onDispose {
             ttsManager.shutdown()
         }

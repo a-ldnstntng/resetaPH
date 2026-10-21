@@ -1,5 +1,6 @@
 package ph.reseta.pricing
 
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -37,6 +38,48 @@ class PriceObservationCsvParserTest {
         assertEquals(2.00, obs2.unitPrice, 0.001)
         assertEquals("2026-10-10", obs2.observedOn)
         assertFalse(obs2.isSample)
+    }
+
+    @Test
+    fun parse_quotedMultilineField_preservesNewlinesAndParsesCorrectly() {
+        val csv = "drug,brand,chain,unit_price,observed_on,source,evidence_note,is_sample\r\n" +
+                "Amoxicillin,,\"Mercury Drug\",8.50,2026-10-15,\"Physical Survey\",\"Note line 1\nNote line 2\",false\r\n" +
+                "Paracetamol,,TGP,2.00,2026-10-10,DOH-DPRI,\"Single line\",true"
+
+        val observations = PriceObservationCsvParser.parse(csv)
+        assertEquals(2, observations.size)
+        assertEquals("Amoxicillin", observations[0].drug)
+        assertEquals("Note line 1\nNote line 2", observations[0].evidenceNote)
+        assertEquals("Paracetamol", observations[1].drug)
+        assertTrue(observations[1].isSample)
+    }
+
+    @Test
+    fun toCsv_inEuropeanLocale_usesPeriodDecimalSeparator() {
+        val originalLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.GERMANY) // Germany uses ',' as decimal separator
+
+            val csv = """
+                drug,brand,chain,unit_price,observed_on,source,evidence_note,is_sample
+                Amoxicillin,,MERCURY_DRUG,12.50,2026-10-15,Survey,"Verified with 20% discount",false
+            """.trimIndent()
+
+            val observations = PriceObservationCsvParser.parse(csv)
+            assertEquals(1, observations.size)
+            assertEquals(12.50, observations[0].unitPrice, 0.001)
+
+            val exportedCsv = PriceObservationCsvParser.toCsv(observations)
+            // Assert exported string has 12.50 and NOT 12,50
+            assertTrue(exportedCsv.contains("12.50"))
+            assertFalse(exportedCsv.contains("12,50"))
+
+            val reloaded = PriceObservationCsvParser.parse(exportedCsv)
+            assertEquals(1, reloaded.size)
+            assertEquals(12.50, reloaded[0].unitPrice, 0.001)
+        } finally {
+            Locale.setDefault(originalLocale)
+        }
     }
 
     @Test

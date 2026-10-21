@@ -1,5 +1,6 @@
 package ph.reseta.pricing
 
+import java.util.Locale
 import ph.reseta.catalog.SamplePhilippineDrugCatalog
 import ph.reseta.model.DatedPrice
 import ph.reseta.model.PharmacyChain
@@ -30,15 +31,15 @@ data class ItemPriceEstimate(
     val recordedDate: String = ""
 ) {
     fun labelPriceTl(): String = if (isSample) {
-        "₱%.2f (Halimbawang presyo)".format(totalGenericPrice)
+        String.format(Locale.US, "₱%.2f (Halimbawang presyo)", totalGenericPrice)
     } else {
-        "₱%.2f (Tantya · %s)".format(totalGenericPrice, recordedDate)
+        String.format(Locale.US, "₱%.2f (Tantya · %s)", totalGenericPrice, recordedDate)
     }
 
     fun labelPriceEn(): String = if (isSample) {
-        "₱%.2f (Sample price)".format(totalGenericPrice)
+        String.format(Locale.US, "₱%.2f (Sample price)", totalGenericPrice)
     } else {
-        "₱%.2f (Estimate · %s)".format(totalGenericPrice, recordedDate)
+        String.format(Locale.US, "₱%.2f (Estimate · %s)", totalGenericPrice, recordedDate)
     }
 }
 
@@ -52,15 +53,15 @@ data class PharmacyBasketTotal(
     val totalItemsCount: Int = 0
 ) {
     fun labelTl(): String = if (isSample) {
-        "₱%.2f (Halimbawang presyo)".format(totalCostPhp)
+        String.format(Locale.US, "₱%.2f (Halimbawang presyo)", totalCostPhp)
     } else {
-        "₱%.2f (Tantya · %s)".format(totalCostPhp, datedPriceReference)
+        String.format(Locale.US, "₱%.2f (Tantya · %s)", totalCostPhp, datedPriceReference)
     }
 
     fun labelEn(): String = if (isSample) {
-        "₱%.2f (Sample price)".format(totalCostPhp)
+        String.format(Locale.US, "₱%.2f (Sample price)", totalCostPhp)
     } else {
-        "₱%.2f (Estimate · %s)".format(totalCostPhp, datedPriceReference)
+        String.format(Locale.US, "₱%.2f (Estimate · %s)", totalCostPhp, datedPriceReference)
     }
 }
 
@@ -264,9 +265,16 @@ object PricingEngine {
             )
         }
 
-        val minCost = basketPerChain.filter { it.totalCostPhp > 0 }.minOfOrNull { it.totalCostPhp } ?: 0.0
+        // Rule & Fix: To be labeled 'Lowest Price', a pharmacy must have all items available.
+        // Otherwise a chain pricing only 1 of 3 drugs appears artificially cheaper than complete baskets.
+        val completeBaskets = basketPerChain.filter { it.totalCostPhp > 0 && it.itemsAvailableCount == it.totalItemsCount }
+        val eligibleBaskets = if (completeBaskets.isNotEmpty()) completeBaskets else basketPerChain.filter { it.totalCostPhp > 0 }
+        val minCost = eligibleBaskets.minOfOrNull { it.totalCostPhp } ?: 0.0
+
         val finalizedBasket = basketPerChain.map {
-            it.copy(isLowestPrice = it.totalCostPhp > 0 && it.totalCostPhp == minCost)
+            val isComplete = it.itemsAvailableCount == it.totalItemsCount
+            val isEligible = if (completeBaskets.isNotEmpty()) isComplete else true
+            it.copy(isLowestPrice = isEligible && it.totalCostPhp > 0 && it.totalCostPhp == minCost)
         }
 
         val allSample = estimates.all { it.isSample }

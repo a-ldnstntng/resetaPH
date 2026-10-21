@@ -39,9 +39,11 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
+import androidx.compose.runtime.key
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.rememberMarkerState
 import ph.reseta.app.R
 import ph.reseta.app.theme.ResetaBorder
 import ph.reseta.app.theme.ResetaInk
@@ -117,11 +119,17 @@ fun Screen08Map(
                         )
                     ) {
                         branches.forEach { branch ->
-                            Marker(
-                                state = MarkerState(position = LatLng(branch.latitude, branch.longitude)),
-                                title = branch.name,
-                                snippet = "Sample branch · Walang aktwal na stock o oras"
-                            )
+                            key(branch.id) {
+                                val markerState = rememberMarkerState(
+                                    key = branch.id,
+                                    position = LatLng(branch.latitude, branch.longitude)
+                                )
+                                Marker(
+                                    state = markerState,
+                                    title = branch.name,
+                                    snippet = "Sample branch · Walang aktwal na stock o oras"
+                                )
+                            }
                         }
                     }
                 }

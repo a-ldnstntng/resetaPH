@@ -172,11 +172,9 @@ const extractionSchema: Schema = {
 
 function stripJsonFences(text: string): string {
   const trimmed = text.trim();
-  if (trimmed.startsWith("```")) {
-    return trimmed
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/, "")
-      .trim();
+  const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (match) {
+    return match[1].trim();
   }
   return trimmed;
 }

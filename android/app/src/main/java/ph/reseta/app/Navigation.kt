@@ -269,9 +269,7 @@ fun MainNavigation() {
                     currentScreen = AppScreen.STORE_DETAIL
                 },
                 onDirectionsClick = { branch ->
-                    val uri = android.net.Uri.parse("geo:${branch.latitude},${branch.longitude}?q=${branch.latitude},${branch.longitude}(${android.net.Uri.encode(branch.name)})")
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-                    runCatching { context.startActivity(intent) }
+                    openDirections(context, branch.latitude, branch.longitude, branch.name)
                 },
                 onCopyInquiry = { branch ->
                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -313,9 +311,7 @@ fun MainNavigation() {
                 },
                 onDirectionsClick = {
                     val branch = mapUiState.selectedBranch ?: SampleData.sampleBranches.first()
-                    val uri = android.net.Uri.parse("geo:${branch.latitude},${branch.longitude}?q=${branch.latitude},${branch.longitude}(${android.net.Uri.encode(branch.name)})")
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-                    runCatching { context.startActivity(intent) }
+                    openDirections(context, branch.latitude, branch.longitude, branch.name)
                 },
                 onCopyInquiryClick = {
                     val branch = mapUiState.selectedBranch ?: SampleData.sampleBranches.first()
@@ -342,6 +338,25 @@ fun MainNavigation() {
                     currentScreen = AppScreen.HOME
                 }
             )
+        }
+    }
+}
+
+private fun openDirections(context: android.content.Context, lat: Double, lon: Double, name: String) {
+    val geoUri = android.net.Uri.parse("geo:$lat,$lon?q=$lat,$lon(${android.net.Uri.encode(name)})")
+    val geoIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, geoUri)
+    val openedNative = runCatching {
+        context.startActivity(geoIntent)
+        true
+    }.getOrDefault(false)
+
+    if (!openedNative) {
+        val webUri = android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lon")
+        val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, webUri)
+        runCatching {
+            context.startActivity(webIntent)
+        }.onFailure {
+            android.widget.Toast.makeText(context, "Hindi mabuksan ang mapa sa device na ito.", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 }

@@ -1,5 +1,6 @@
 package ph.reseta.pricing
 
+import java.util.Locale
 import ph.reseta.model.PharmacyChain
 import ph.reseta.model.PriceObservation
 
@@ -25,10 +26,10 @@ object PriceObservationCsvParser {
     private const val HEADER_IS_SAMPLE = "is_sample"
 
     fun parse(csvContent: String): List<PriceObservation> {
-        val lines = csvContent.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        if (lines.isEmpty()) return emptyList()
+        val rows = parseCsvRows(csvContent)
+        if (rows.isEmpty()) return emptyList()
 
-        val headerTokens = parseCsvRow(lines.first()).map { it.lowercase().trim() }
+        val headerTokens = rows.first().map { it.lowercase().trim() }
         val drugIdx = headerTokens.indexOf(HEADER_DRUG)
         val brandIdx = headerTokens.indexOf(HEADER_BRAND)
         val chainIdx = headerTokens.indexOf(HEADER_CHAIN)
@@ -46,12 +47,10 @@ object PriceObservationCsvParser {
 
         val results = mutableListOf<PriceObservation>()
 
-        for (i in 1 until lines.size) {
-            val line = lines[i]
-            if (line.startsWith("#")) continue // Skip comment rows
-
-            val tokens = parseCsvRow(line)
+        for (i in 1 until rows.size) {
+            val tokens = rows[i]
             if (tokens.isEmpty() || tokens.all { it.isBlank() }) continue
+            if (tokens.firstOrNull()?.trimStart()?.startsWith("#") == true) continue // Skip comment rows
 
             val drug = tokens.getOrNull(drugIdx)?.trim().orEmpty()
             if (drug.isEmpty()) continue
@@ -102,7 +101,7 @@ object PriceObservationCsvParser {
                     escapeCsv(obs.drug),
                     escapeCsv(obs.brand ?: ""),
                     obs.chain.name,
-                    "%.2f".format(obs.unitPrice),
+                    String.format(Locale.US, "%.2f", obs.unitPrice),
                     escapeCsv(obs.observedOn),
                     escapeCsv(obs.source),
                     escapeCsv(obs.evidenceNote),
@@ -115,45 +114,61 @@ object PriceObservationCsvParser {
 
     private fun parseChain(raw: String): PharmacyChain? {
         val clean = raw.trim().uppercase()
-        return PharmacyChain.values().firstOrNull {
+        return PharmacyChain.entries.firstOrNull {
             it.name == clean ||
             it.shortName.uppercase() == clean ||
             it.displayName.uppercase() == clean
         }
     }
 
-    private fun parseCsvRow(row: String): List<String> {
-        val tokens = mutableListOf<String>()
-        val sb = StringBuilder()
+    private fun parseCsvRows(content: String): List<List<String>> {
+        val rows = mutableListOf<List<String>>()
+        val currentTokens = mutableListOf<String>()
+        val currentField = StringBuilder()
         var inQuotes = false
         var i = 0
-        while (i < row.length) {
-            val c = row[i]
+
+        while (i < content.length) {
+            val c = content[i]
             when {
                 c == '\"' -> {
-                    if (inQuotes && i + 1 < row.length && row[i + 1] == '\"') {
-                        sb.append('\"')
+                    if (inQuotes && i + 1 < content.length && content[i + 1] == '\"') {
+                        currentField.append('\"')
                         i++
                     } else {
                         inQuotes = !inQuotes
                     }
                 }
                 c == ',' && !inQuotes -> {
-                    tokens.add(sb.toString().trim())
-                    sb.clear()
+                    currentTokens.add(currentField.toString().trim())
+                    currentField.clear()
+                }
+                (c == '\r' || c == '\n') && !inQuotes -> {
+                    if (c == '\r' && i + 1 < content.length && content[i + 1] == '\n') {
+                        i++
+                    }
+                    currentTokens.add(currentField.toString().trim())
+                    currentField.clear()
+                    if (currentTokens.any { it.isNotEmpty() }) {
+                        rows.add(currentTokens.toList())
+                    }
+                    currentTokens.clear()
                 }
                 else -> {
-                    sb.append(c)
+                    currentField.append(c)
                 }
             }
             i++
         }
-        tokens.add(sb.toString().trim())
-        return tokens
+        currentTokens.add(currentField.toString().trim())
+        if (currentTokens.any { it.isNotEmpty() }) {
+            rows.add(currentTokens.toList())
+        }
+        return rows
     }
 
     private fun escapeCsv(value: String): String {
-        return if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+        return if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
             "\"" + value.replace("\"", "\"\"") + "\""
         } else {
             value

@@ -9,9 +9,9 @@ import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.io.InputStream
 import kotlin.math.max
-import kotlin.math.roundToInt
 
 object ImageProcessingUtils {
 
@@ -27,12 +27,17 @@ object ImageProcessingUtils {
     ): ByteArray = withContext(Dispatchers.IO) {
         // 1. First read bounds without decoding entire bitmap into memory
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        contentResolver.openInputStream(uri).use { stream ->
+        val boundsStream = contentResolver.openInputStream(uri)
+            ?: throw IOException("Hindi mabuksan ang litrato mula sa URI: $uri")
+        boundsStream.use { stream ->
             BitmapFactory.decodeStream(stream, null, options)
         }
 
         val origWidth = options.outWidth
         val origHeight = options.outHeight
+        if (origWidth <= 0 || origHeight <= 0) {
+            throw IOException("Hindi wastong format o sukat ng litrato ($origWidth x $origHeight)")
+        }
         val originalLongSide = max(origWidth, origHeight)
 
         // Calculate sample size: ensure we NEVER scale down below 1600 px on the long side
@@ -50,15 +55,17 @@ object ImageProcessingUtils {
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
 
-        val decodedBitmap: Bitmap = contentResolver.openInputStream(uri).use { stream ->
+        val decodeStream = contentResolver.openInputStream(uri)
+            ?: throw IOException("Hindi ma-load ang litrato para sa decoding: $uri")
+        val decodedBitmap: Bitmap = decodeStream.use { stream ->
             BitmapFactory.decodeStream(stream, null, decodeOptions)
-        } ?: throw IllegalArgumentException("Could not decode image from URI: $uri")
+        } ?: throw IOException("Hindi ma-decode ang litrato mula sa URI: $uri")
 
         // 2. Handle EXIF rotation so cursive orientation is upright for OCR
         val rotatedBitmap = try {
-            contentResolver.openInputStream(uri).use { stream ->
-                if (stream != null) fixExifOrientation(stream, decodedBitmap) else decodedBitmap
-            }
+            contentResolver.openInputStream(uri)?.use { stream ->
+                fixExifOrientation(stream, decodedBitmap)
+            } ?: decodedBitmap
         } catch (_: Exception) {
             decodedBitmap
         }
