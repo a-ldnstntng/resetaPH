@@ -9,3 +9,5 @@ coverage/
 .vscode/
 local.properties
 *.local.properties
+stitch_reference/
+download_stitch.ps1
