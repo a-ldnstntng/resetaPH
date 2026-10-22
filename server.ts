@@ -2,6 +2,7 @@
 import "dotenv/config";
 import express, { type Request, type Response } from "express";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, ThinkingLevel, Type, type Schema } from "@google/genai";
@@ -230,6 +231,17 @@ async function startServer() {
       uptimeSeconds: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),
     });
+  });
+
+  app.get(["/download", "/app-debug.apk"], (_req: Request, res: Response) => {
+    const apkPath = path.resolve(process.cwd(), "android/app/build/outputs/apk/debug/app-debug.apk");
+    if (fs.existsSync(apkPath)) {
+      res.setHeader("Content-Type", "application/vnd.android.package-archive");
+      res.setHeader("Content-Disposition", 'attachment; filename="resetaPH-debug.apk"');
+      res.sendFile(apkPath);
+    } else {
+      res.status(404).send("APK not found. Please build the APK first.");
+    }
   });
 
   // POST /api/scan

@@ -43,6 +43,7 @@ import ph.reseta.app.theme.ResetaPrimarySoft
 import ph.reseta.app.theme.ResetaSurface
 import ph.reseta.app.ui.components.PriceEstimateBadge
 import ph.reseta.app.ui.components.PrimaryResetaButton
+import ph.reseta.app.ui.components.SecondaryResetaButton
 import ph.reseta.app.ui.components.ResetaCard
 import ph.reseta.app.ui.components.ResetaTopBar
 import ph.reseta.model.PrescriptionScan
@@ -56,6 +57,7 @@ import ph.reseta.sample.SampleData
 fun Screen05Savings(
     scanResult: PrescriptionScan = SampleData.sampleScanResult,
     onViewScheduleClick: () -> Unit = {},
+    onViewMapClick: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
     val basketSavings = PricingEngine.calculateBasketSavings(scanResult.items)
@@ -278,6 +280,14 @@ fun Screen05Savings(
             PrimaryResetaButton(
                 text = "Tingnan ang Schedule ng Gamot",
                 onClick = onViewScheduleClick
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            SecondaryResetaButton(
+                text = "Tingnan ang Mapa ng Botika",
+                onClick = onViewMapClick,
+                icon = Icons.Default.Storefront
             )
         }
     }

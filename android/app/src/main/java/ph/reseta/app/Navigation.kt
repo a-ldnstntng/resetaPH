@@ -250,6 +250,10 @@ fun MainNavigation() {
                     scheduleViewModel.loadSchedule(currentScan.id)
                     currentScreen = AppScreen.SCHEDULE
                 },
+                onViewMapClick = {
+                    mapViewModel.loadBranches()
+                    currentScreen = AppScreen.MAP
+                },
                 onBack = { currentScreen = AppScreen.REVIEW }
             )
             AppScreen.SCHEDULE -> Screen06Schedule(
